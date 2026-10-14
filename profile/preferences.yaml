@@ -1,0 +1,20 @@
+# Owner preferences. Fill these in; the agent reads this file on every run.
+owner:
+  timezone: Asia/Kolkata   # used for schedules; change if needed
+
+jobs:
+  # Read-only public job boards. Greenhouse board tokens are the last part of
+  # https://boards.greenhouse.io/<token>. Add the companies you want to watch.
+  sources:
+    - type: greenhouse
+      boards: []            # e.g. [anthropic, databricks, stripe]
+  target_titles: []         # e.g. ["AI Engineer", "Machine Learning Engineer"]
+  skills: []                # e.g. [python, langgraph, aws, llm]
+  locations: []             # e.g. [remote, india, bengaluru]; empty = any
+  exclude_title_words: [intern, principal]
+  min_score: 60
+  max_per_run: 10
+
+content:
+  default_topic: a lesson from my recent work
+  positioning: ""           # one sentence: who you help, with what, and your proof

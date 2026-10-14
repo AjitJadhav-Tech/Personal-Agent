@@ -246,7 +246,13 @@ infra/
 
 ---
 
-## 10. Extra inputs needed for this version
+## 10. Decisions so far
+
+- Region: **us-east-1** (2026-10-14)
+- Approvals and reports by **email only**, to the owner's Outlook address, sent with Amazon SES (2026-10-14)
+- Phase 0 is built; see [DEPLOY.md](DEPLOY.md)
+
+## 11. Extra inputs needed for this version
 
 1. An AWS account (or confirmation to create one) and the region you want (Bedrock and AgentCore availability differs by region; us-east-1 or us-west-2 are the safest choices).
 2. Which notification channels you want for approvals: email only, or also SMS or Telegram.

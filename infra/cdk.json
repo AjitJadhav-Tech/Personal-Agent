@@ -1,0 +1,10 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "region": "us-east-1",
+    "notifyEmail": "ajit.jadhav.ai@outlook.com",
+    "timezone": "Asia/Kolkata",
+    "dryRun": "true",
+    "monthlyBudgetUsd": 50
+  }
+}
