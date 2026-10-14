@@ -4,6 +4,8 @@ A LangGraph-based personal AI agent that (1) finds and prepares job applications
 
 Status: plan only, no code yet. Dates below are relative to kickoff.
 
+> **Architecture update:** the agent now runs fully serverless on Amazon Bedrock AgentCore (Runtime, Memory, Identity, Gateway, Observability) with an approval step before every outward action. See [AGENTCORE_ARCHITECTURE.md](AGENTCORE_ARCHITECTURE.md). It supersedes sections 3.1, 3.5 (model hosting moves to Bedrock), 3.6, 4, 5 (infra folder), 7 and 8 below. The graphs, strategy, compliance rules and testing approach in this document still apply.
+
 ---
 
 ## 1. Read this first: platform rules and account risk
