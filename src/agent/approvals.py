@@ -69,6 +69,13 @@ def approval_link(base_url: str, approval_id: str, secret: str) -> str:
     return f"{base_url}/a/{approval_id}?t={sign(approval_id, secret)}"
 
 
+CONTROL_ID = "control-page"  # never a valid approval id (those are uuid hex)
+
+
+def control_link(base_url: str, secret: str) -> str:
+    return f"{base_url.rstrip('/')}/control?t={sign(CONTROL_ID, secret)}"
+
+
 def normalize_decision(raw: dict[str, Any]) -> dict[str, Any]:
     """Validate a decision coming from the approval page."""
     action = raw.get("action")

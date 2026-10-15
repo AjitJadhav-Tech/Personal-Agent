@@ -141,6 +141,7 @@ class PersonalAgentStack(cdk.Stack):
                 "APPROVAL_SECRET_ARN": approval_secret.secret_arn,
                 "RUNNER_FUNCTION_NAME": RUNNER_FUNCTION_NAME,
                 "NOTIFY_EMAIL": notify_email,
+                "PAUSED_PARAMETER": paused.parameter_name,
                 "LINKEDIN_CLIENT_SECRET_NAME": LINKEDIN_CLIENT_SECRET_NAME,
                 **linkedin_env,
             },
@@ -150,6 +151,8 @@ class PersonalAgentStack(cdk.Stack):
         linkedin_client_secret.grant_read(approval_fn)
         linkedin_token.grant_read(approval_fn)
         linkedin_token.grant_write(approval_fn)
+        paused.grant_read(approval_fn)
+        paused.grant_write(approval_fn)
         approval_fn.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["lambda:InvokeFunction"],
@@ -173,6 +176,11 @@ class PersonalAgentStack(cdk.Stack):
             path="/oauth/linkedin/{step}",
             methods=[apigw.HttpMethod.GET],
             integration=integrations.HttpLambdaIntegration("LinkedInIntegration", approval_fn),
+        )
+        api.add_routes(
+            path="/control",
+            methods=[apigw.HttpMethod.GET, apigw.HttpMethod.POST],
+            integration=integrations.HttpLambdaIntegration("ControlIntegration", approval_fn),
         )
 
         # ---------- AgentCore Runtime ----------

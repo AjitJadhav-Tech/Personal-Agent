@@ -21,14 +21,20 @@ from agent import linkedin
 from agent.approvals import Approval, normalize_decision, verify
 from agent.services import get_services
 from agent.store import AlreadyDecided
+from approval_api import control
 
 
-def handler(event: dict[str, Any], context: Any = None, *, resume=None) -> dict[str, Any]:
+def handler(
+    event: dict[str, Any], context: Any = None, *, resume=None, start_run=None
+) -> dict[str, Any]:
     svc = get_services()
+    method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
     path = event.get("rawPath", "")
     if path.startswith("/oauth/linkedin/"):
         return _linkedin(event, path.rsplit("/", 1)[-1], svc)
-    method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
+    if path == "/control":
+        form = _parse_form(event) if method == "POST" else None
+        return control.handle(event, svc, form, start_run or _start_run, _page)
     approval_id = (event.get("pathParameters") or {}).get("id", "")
     approval = svc.store.get_approval(approval_id)
     if approval is None:
@@ -121,14 +127,18 @@ def _linkedin(event: dict[str, Any], step: str, svc) -> dict[str, Any]:
 
 
 def _resume_async(approval: Approval) -> None:
+    _start_run(
+        {"task": approval.task, "thread_id": approval.thread_id, "decision": approval.decision}
+    )
+
+
+def _start_run(payload: dict[str, Any]) -> None:
     import boto3
 
     boto3.client("lambda").invoke(
         FunctionName=os.environ["RUNNER_FUNCTION_NAME"],
         InvocationType="Event",
-        Payload=json.dumps(
-            {"task": approval.task, "thread_id": approval.thread_id, "decision": approval.decision}
-        ).encode(),
+        Payload=json.dumps(payload).encode(),
     )
 
 

@@ -98,6 +98,7 @@ def report_email(
     date_label: str,
     entries: list[dict[str, Any]],
     linkedin_status: tuple[str, str | None] | None = None,
+    control_link: str | None = None,
 ) -> tuple[str, str, str]:
     subject = f"Personal Agent daily report: {date_label}"
     if not entries:
@@ -117,6 +118,12 @@ def report_email(
             else ""
         )
         status_html = f"<p>{escape(note)}{button}</p>"
+    if control_link:
+        text += f"\n\nControl page (ask for a post, run now, pause): {control_link}"
+        status_html += (
+            f'<p><a href="{escape(control_link)}">Open your control page</a> to ask for a post, '
+            "run a job search now, or pause the agent. Bookmark it and keep it private.</p>"
+        )
     html = f"""<div style="font-family:system-ui,sans-serif;max-width:640px">
 <h2>Daily report: {escape(date_label)}</h2><ul>{items}</ul>{status_html}</div>"""
     return subject, html, text

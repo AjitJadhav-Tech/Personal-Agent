@@ -13,6 +13,9 @@ class FakeServices(Services):
     def is_paused(self) -> bool:
         return self.paused
 
+    def set_paused(self, paused: bool) -> None:
+        self.paused = paused
+
 
 @pytest.fixture
 def services(monkeypatch, tmp_path):

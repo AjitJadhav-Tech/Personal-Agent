@@ -67,6 +67,16 @@ class Services:
     def is_paused(self) -> bool:
         return _ssm_flag(self.settings.paused_parameter, self.settings.region)
 
+    def set_paused(self, paused: bool) -> None:
+        import boto3
+
+        boto3.client("ssm", region_name=self.settings.region).put_parameter(
+            Name=self.settings.paused_parameter,
+            Value="true" if paused else "false",
+            Type="String",
+            Overwrite=True,
+        )
+
 
 _override: Services | None = None
 

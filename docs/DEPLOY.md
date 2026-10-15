@@ -60,6 +60,7 @@ Edit `profile/preferences.yaml` (target titles, skills, locations, Greenhouse bo
 
 ## 6. Operating it
 
+- **Control page:** every daily report links to it. Bookmark it and keep it private. From it you can ask for a post on any topic (with your own notes), run a job search or the daily report now, pause or resume the agent, check the LinkedIn connection, and see the last 3 days of activity. Opening the page changes nothing; only its buttons do.
 - **Pause everything:** in *Systems Manager → Parameter Store*, set `/personal-agent/paused` to `true` (back to `false` to resume). If the flag can't be read, the agent treats itself as paused.
 - **Logs and traces:** CloudWatch → GenAI Observability → Bedrock AgentCore; deploy logs in CodeBuild → `personal-agent-deploy`.
 - **Cost guard:** an AWS Budget emails you at 80% of `monthlyBudgetUsd`, actual or forecast.

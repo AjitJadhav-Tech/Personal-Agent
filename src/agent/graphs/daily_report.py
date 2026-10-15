@@ -8,6 +8,7 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from agent import linkedin
+from agent.approvals import control_link
 from agent.notify import report_email
 from agent.services import get_services
 
@@ -24,7 +25,12 @@ def send_report(state: ReportState) -> ReportState:
     now = datetime.now(UTC)
     entries = sorted(svc.store.activity_since(now - timedelta(days=1)), key=lambda e: e["at"])
     svc.notifier.send(
-        *report_email(now.date().isoformat(), entries, linkedin_status=_linkedin_status(svc, now))
+        *report_email(
+            now.date().isoformat(),
+            entries,
+            linkedin_status=_linkedin_status(svc, now),
+            control_link=control_link(svc.settings.approval_base_url, svc.approval_secret),
+        )
     )
     return {"entries": len(entries), "status": "sent"}
 
