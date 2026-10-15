@@ -30,17 +30,6 @@ class OpportunityState(TypedDict, total=False):
     status: str
 
 
-def new_record(text: str, link: str = "", documents: bool = False) -> dict[str, Any]:
-    return {
-        "id": uuid.uuid4().hex[:12],
-        "created_at": datetime.now(UTC).isoformat(),
-        "text": text,
-        "link": link,
-        "documents": documents,
-        "status": "drafting",
-    }
-
-
 def prepare(state: OpportunityState) -> OpportunityState:
     from agent.tailoring import analyze_opportunity, draft_reply
 

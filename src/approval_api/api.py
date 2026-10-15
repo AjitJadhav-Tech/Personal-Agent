@@ -10,6 +10,7 @@ from typing import Any
 
 from agent import linkedin
 from agent.approvals import approval_link
+from agent.opportunities import new_record
 
 RUN_TASKS = ("job_hunt", "daily_report")
 TEXT_LIMIT = 20000
@@ -46,8 +47,6 @@ def handle(event: dict[str, Any], svc, start_run) -> dict[str, Any]:
         svc.store.log("app", f"You asked for a post about: {topic[:300]}")
         return _json(202, {"message": "Drafting your post. The approval email arrives shortly."})
     if (method, route) == ("POST", "/opportunities"):
-        from agent.graphs.opportunity import new_record
-
         text = str(body.get("text") or "").strip()
         if len(text) < 20:
             return _json(400, {"error": "Paste the full message or job post."})
