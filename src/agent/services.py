@@ -2,13 +2,49 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 
+from agent import linkedin
 from agent.config import Settings, get_settings
 from agent.llm import Drafter, bedrock_drafter
 from agent.notify import Notifier, SesNotifier
 from agent.store import DynamoStore, Store
+
+
+class LinkedInAccount:
+    """The owner's LinkedIn connection, kept in a Secrets Manager secret."""
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
+
+    def _client(self):
+        import boto3
+
+        return boto3.client("secretsmanager", region_name=self.settings.region)
+
+    def record(self) -> dict | None:
+        if not self.settings.linkedin_token_secret_arn:
+            return None
+        raw = self._client().get_secret_value(SecretId=self.settings.linkedin_token_secret_arn)
+        return linkedin.parse_token_record(raw.get("SecretString"))
+
+    def save(self, record: dict) -> None:
+        self._client().put_secret_value(
+            SecretId=self.settings.linkedin_token_secret_arn, SecretString=json.dumps(record)
+        )
+
+    def client_secret(self) -> str:
+        return _secret(self.settings.linkedin_client_secret_name, self.settings.region).strip()
+
+    def publish(self, text: str) -> str:
+        record = self.record()
+        if record is None:
+            raise linkedin.LinkedInError("LinkedIn is not connected")
+        return linkedin.publish_post(
+            record["access_token"], record["person_urn"], text, self.settings.linkedin_api_version
+        )
 
 
 @dataclass
@@ -18,6 +54,7 @@ class Services:
     notifier: Notifier
     drafter: Drafter
     approval_secret: str
+    linkedin: LinkedInAccount | None = None
 
     def is_paused(self) -> bool:
         return _ssm_flag(self.settings.paused_parameter, self.settings.region)
@@ -45,6 +82,7 @@ def _aws_services() -> Services:
         notifier=SesNotifier(sender=s.sender_email, recipient=s.notify_email, region=s.region),
         drafter=bedrock_drafter(s.drafting_model_id, s.region),
         approval_secret=_secret(s.approval_secret_arn, s.region),
+        linkedin=LinkedInAccount(s),
     )
 
 

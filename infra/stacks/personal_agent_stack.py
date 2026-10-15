@@ -30,6 +30,8 @@ from constructs import Construct
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNNER_FUNCTION_NAME = "personal-agent-runner"
+# Created by the owner in the Secrets Manager console (plaintext), never committed.
+LINKEDIN_CLIENT_SECRET_NAME = "personal-agent/linkedin-client-secret"
 
 # Schedules in the owner's timezone: (id, task, cron fields).
 SCHEDULES = [
@@ -55,6 +57,7 @@ class PersonalAgentStack(cdk.Stack):
         monthly_budget_usd: float,
         model_id: str = "us.moonshotai.kimi-k3",
         sender_email: str | None = None,
+        linkedin_client_id: str = "",
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -79,6 +82,17 @@ class PersonalAgentStack(cdk.Stack):
                 password_length=64, exclude_punctuation=True
             ),
         )
+        # Holds the owner's LinkedIn access token once they connect; starts as a placeholder.
+        linkedin_token = secrets.Secret(
+            self, "LinkedInToken", description="LinkedIn access token for publishing posts"
+        )
+        linkedin_client_secret = secrets.Secret.from_secret_name_v2(
+            self, "LinkedInClientSecret", LINKEDIN_CLIENT_SECRET_NAME
+        )
+        linkedin_env = {
+            "LINKEDIN_CLIENT_ID": linkedin_client_id,
+            "LINKEDIN_TOKEN_SECRET_ARN": linkedin_token.secret_arn,
+        }
         paused = ssm.StringParameter(
             self,
             "PausedFlag",
@@ -127,10 +141,15 @@ class PersonalAgentStack(cdk.Stack):
                 "APPROVAL_SECRET_ARN": approval_secret.secret_arn,
                 "RUNNER_FUNCTION_NAME": RUNNER_FUNCTION_NAME,
                 "NOTIFY_EMAIL": notify_email,
+                "LINKEDIN_CLIENT_SECRET_NAME": LINKEDIN_CLIENT_SECRET_NAME,
+                **linkedin_env,
             },
         )
         table.grant_read_write_data(approval_fn)
         approval_secret.grant_read(approval_fn)
+        linkedin_client_secret.grant_read(approval_fn)
+        linkedin_token.grant_read(approval_fn)
+        linkedin_token.grant_write(approval_fn)
         approval_fn.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["lambda:InvokeFunction"],
@@ -149,6 +168,11 @@ class PersonalAgentStack(cdk.Stack):
             path="/a/{id}",
             methods=[apigw.HttpMethod.GET, apigw.HttpMethod.POST],
             integration=integrations.HttpLambdaIntegration("ApprovalIntegration", approval_fn),
+        )
+        api.add_routes(
+            path="/oauth/linkedin/{step}",
+            methods=[apigw.HttpMethod.GET],
+            integration=integrations.HttpLambdaIntegration("LinkedInIntegration", approval_fn),
         )
 
         # ---------- AgentCore Runtime ----------
@@ -171,6 +195,7 @@ class PersonalAgentStack(cdk.Stack):
         table.grant_read_write_data(runtime_role)
         approval_secret.grant_read(runtime_role)
         paused.grant_read(runtime_role)
+        linkedin_token.grant_read(runtime_role)
         runtime_role.add_to_policy(
             iam.PolicyStatement(actions=["ecr:GetAuthorizationToken"], resources=["*"])
         )
@@ -250,6 +275,7 @@ class PersonalAgentStack(cdk.Stack):
                 "DRY_RUN": dry_run,
                 "DRAFTING_MODEL_ID": model_id,
                 "FAST_MODEL_ID": model_id,
+                **linkedin_env,
             },
         )
         runtime.node.add_dependency(runtime_role)

@@ -13,6 +13,7 @@ PersonalAgentStack(
     dry_run=str(app.node.try_get_context("dryRun") or "true").lower(),
     monthly_budget_usd=float(app.node.try_get_context("monthlyBudgetUsd") or 50),
     model_id=app.node.try_get_context("modelId") or "us.moonshotai.kimi-k3",
+    linkedin_client_id=app.node.try_get_context("linkedinClientId") or "",
     env=cdk.Environment(region=app.node.get_context("region")),
 )
 PipelineStack(

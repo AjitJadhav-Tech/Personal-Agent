@@ -7,6 +7,7 @@ from typing import Any, Literal, TypedDict
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
+from agent import linkedin
 from agent.graphs.review import await_decision, request_approval
 from agent.profile import load_preferences
 from agent.services import get_services
@@ -67,8 +68,17 @@ def publish(state: ContentState) -> ContentState:
     if svc.settings.dry_run:
         svc.store.log(TASK, "Dry run: approved post would be published now", {"chars": len(text)})
         return {"final_text": text, "status": "dry_run"}
-    # Phase 3 connects the LinkedIn Posts API through AgentCore Identity + Gateway.
-    raise NotImplementedError("LinkedIn publishing arrives in phase 3; keep DRY_RUN=true")
+    account = svc.linkedin
+    if account is None or account.record() is None:
+        svc.store.log(
+            TASK,
+            "Approved post not published: LinkedIn is not connected. Use the connect link in "
+            "the daily report, then paste the approved text on LinkedIn yourself.",
+        )
+        return {"final_text": text, "status": "not_connected"}
+    urn = account.publish(text)
+    svc.store.log(TASK, f"Published on LinkedIn: {linkedin.post_url(urn)}", {"urn": urn})
+    return {"final_text": text, "status": "published"}
 
 
 def record_rejection(state: ContentState) -> ContentState:

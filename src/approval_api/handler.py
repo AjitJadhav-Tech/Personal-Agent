@@ -3,17 +3,21 @@
 GET  /a/{id}?t=<token>  shows the item with Approve / Edit / Reject controls. It changes nothing,
                         because mail scanners (including Outlook Safe Links) open links in emails.
 POST /a/{id}            records the decision once, then resumes the paused run asynchronously.
+GET  /oauth/linkedin/start?t=<token>  sends the owner to LinkedIn to connect their account.
+GET  /oauth/linkedin/callback         stores the LinkedIn access token LinkedIn hands back.
 """
 
 from __future__ import annotations
 
 import base64
+import hmac
 import json
 import os
 from html import escape
 from typing import Any
 from urllib.parse import parse_qs
 
+from agent import linkedin
 from agent.approvals import Approval, normalize_decision, verify
 from agent.services import get_services
 from agent.store import AlreadyDecided
@@ -21,6 +25,9 @@ from agent.store import AlreadyDecided
 
 def handler(event: dict[str, Any], context: Any = None, *, resume=None) -> dict[str, Any]:
     svc = get_services()
+    path = event.get("rawPath", "")
+    if path.startswith("/oauth/linkedin/"):
+        return _linkedin(event, path.rsplit("/", 1)[-1], svc)
     method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
     approval_id = (event.get("pathParameters") or {}).get("id", "")
     approval = svc.store.get_approval(approval_id)
@@ -64,6 +71,52 @@ def handler(event: dict[str, Any], context: Any = None, *, resume=None) -> dict[
         200,
         "Thanks",
         f"<p>Recorded: <b>{escape(decision['action'])}</b>. The agent is continuing now.</p>",
+    )
+
+
+def _linkedin(event: dict[str, Any], step: str, svc) -> dict[str, Any]:
+    params = event.get("queryStringParameters") or {}
+    domain = event.get("requestContext", {}).get("domainName", "")
+    redirect_uri = f"https://{domain}/oauth/linkedin/callback"
+    client_id = svc.settings.linkedin_client_id
+    if not client_id or svc.linkedin is None:
+        return _page(503, "Not set up", "<p>LinkedIn publishing is not configured.</p>")
+
+    if step == "start":
+        if not hmac.compare_digest(
+            params.get("t", ""), linkedin.connect_token(svc.approval_secret)
+        ):
+            return _page(403, "Link not valid", "<p>This link is not valid.</p>")
+        url = linkedin.authorize_url(
+            client_id, redirect_uri, linkedin.make_state(svc.approval_secret)
+        )
+        return {"statusCode": 302, "headers": {"location": url, "cache-control": "no-store"}}
+
+    if step != "callback":
+        return _page(404, "Not found", "<p>Not found.</p>")
+    if params.get("error"):
+        detail = params.get("error_description") or params["error"]
+        return _page(400, "LinkedIn not connected", f"<p>LinkedIn said: {escape(detail)}</p>")
+    if not linkedin.check_state(params.get("state", ""), svc.approval_secret):
+        return _page(
+            403, "Link expired", "<p>This sign-in expired. Use the connect link again.</p>"
+        )
+    try:
+        token = linkedin.exchange_code(
+            params.get("code", ""), client_id, svc.linkedin.client_secret(), redirect_uri
+        )
+        record = linkedin.token_record(token, linkedin.userinfo(token["access_token"]))
+        svc.linkedin.save(record)
+    except Exception as e:
+        svc.store.log("content", f"LinkedIn connection failed: {e}")
+        return _page(502, "LinkedIn not connected", f"<p>{escape(str(e))}</p>")
+    days = int(linkedin.days_left(record) or 0)
+    svc.store.log("content", f"LinkedIn connected as {record['name']} for {days} days")
+    return _page(
+        200,
+        "LinkedIn connected",
+        f"<p>Connected as <b>{escape(record['name'])}</b>. Approved posts will be published "
+        f"for the next {days} days; the daily report will remind you to reconnect.</p>",
     )
 
 

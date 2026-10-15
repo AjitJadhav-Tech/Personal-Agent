@@ -94,7 +94,11 @@ def approval_email(approval: Approval, link: str) -> tuple[str, str, str]:
     return subject, html, text
 
 
-def report_email(date_label: str, entries: list[dict[str, Any]]) -> tuple[str, str, str]:
+def report_email(
+    date_label: str,
+    entries: list[dict[str, Any]],
+    linkedin_status: tuple[str, str | None] | None = None,
+) -> tuple[str, str, str]:
     subject = f"Personal Agent daily report: {date_label}"
     if not entries:
         lines = ["No activity in the last 24 hours."]
@@ -102,8 +106,19 @@ def report_email(date_label: str, entries: list[dict[str, Any]]) -> tuple[str, s
         lines = [f"{e['at'][11:16]} UTC  [{e['kind']}]  {e['message']}" for e in entries]
     text = "\n".join(lines)
     items = "".join(f"<li>{escape(line)}</li>" for line in lines)
+    status_html = ""
+    if linkedin_status:
+        note, link = linkedin_status
+        text += f"\n\n{note}" + (f"\nConnect LinkedIn: {link}" if link else "")
+        button = (
+            f' <a href="{escape(link)}" style="background:#0a66c2;color:#fff;padding:6px 12px;'
+            f'border-radius:6px;text-decoration:none">Connect LinkedIn</a>'
+            if link
+            else ""
+        )
+        status_html = f"<p>{escape(note)}{button}</p>"
     html = f"""<div style="font-family:system-ui,sans-serif;max-width:640px">
-<h2>Daily report: {escape(date_label)}</h2><ul>{items}</ul></div>"""
+<h2>Daily report: {escape(date_label)}</h2><ul>{items}</ul>{status_html}</div>"""
     return subject, html, text
 
 

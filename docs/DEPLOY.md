@@ -4,7 +4,7 @@ Region: **us-east-1**. Model: **Kimi K3 on Amazon Bedrock** (`us.moonshotai.kimi
 
 Deploys run in **AWS CodeBuild**: every push to the deploy branch runs lint and tests, builds the agent image and deploys. You only do the one-time setup below, all in the AWS console. Nothing needs to be installed on your computer.
 
-The agent starts in **dry-run mode**: it drafts posts, finds jobs, emails you for approval and records your decisions, but never publishes anything. LinkedIn publishing arrives in phase 3.
+The agent starts in **dry-run mode**: it drafts posts, finds jobs, emails you for approval and records your decisions, but never publishes anything. See *LinkedIn publishing* below to go live.
 
 ## 1. One-time setup in the AWS console (us-east-1)
 
@@ -45,7 +45,8 @@ Edit `profile/preferences.yaml` (target titles, skills, locations, Greenhouse bo
 | Setting (`infra/cdk.json`) | What it does |
 |---|---|
 | `modelId` | Bedrock model or inference profile (default `us.moonshotai.kimi-k3`) |
-| `dryRun` | `"true"` until LinkedIn publishing is ready and you want to go live |
+| `dryRun` | `"true"` keeps every post unpublished; set `"false"` to publish approved posts |
+| `linkedinClientId` | Client ID of your LinkedIn developer app |
 | `timezone` | Schedules' timezone (default `Asia/Kolkata`) |
 | `monthlyBudgetUsd` | Budget alert threshold (default 50) |
 
@@ -83,7 +84,17 @@ When you approve jobs in a match email, the agent writes a tailored resume and c
 
 To make the documents stronger, add true facts and metrics to `profile/master_profile.yaml` and push.
 
+## LinkedIn publishing (phase 3)
+
+Approved posts go out through LinkedIn's official Posts API, on your account, and only after you approve them.
+
+1. **Developer app** (linkedin.com/developers): products *Share on LinkedIn* and *Sign In with LinkedIn using OpenID Connect*; under *Auth*, redirect URL `<ApprovalApiUrl>/oauth/linkedin/callback`. Put its Client ID in `infra/cdk.json` as `linkedinClientId`.
+2. **Client secret:** Secrets Manager → *Store a new secret* → *Other type of secret* → *Plaintext*, paste only the secret, name it `personal-agent/linkedin-client-secret`.
+3. **Connect:** run the Lambda test `{"task":"daily_report"}`; the email has a *Connect LinkedIn* button. Sign in and allow. The page should say "LinkedIn connected as …".
+4. **Go live:** set `"dryRun": "false"` in `infra/cdk.json` and push.
+
+LinkedIn tokens last about 60 days and self-serve apps get no refresh token, so the daily report shows the connection status and brings the *Connect LinkedIn* button back in the last week. If the connection lapses, an approved post is not published; the daily report says so and you can paste it on LinkedIn yourself. The token is kept in the `LinkedInToken` secret (we use our own sign-in page rather than AgentCore Identity, which keeps the setup to the steps above).
+
 ## Not built yet
 
-- LinkedIn sign-in through AgentCore Identity and publishing via the Posts API (phase 3); `dryRun` stays `"true"` until then
 - Connection suggestions (phase 4) and the dashboard (phase 2)

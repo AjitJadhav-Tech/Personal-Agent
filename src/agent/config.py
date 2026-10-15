@@ -20,6 +20,10 @@ class Settings:
     fast_model_id: str
     dry_run: bool
     paused_parameter: str
+    linkedin_client_id: str = ""
+    linkedin_client_secret_name: str = ""
+    linkedin_token_secret_arn: str = ""
+    linkedin_api_version: str = "202606"
 
 
 @lru_cache
@@ -39,4 +43,9 @@ def get_settings() -> Settings:
         fast_model_id=env.get("FAST_MODEL_ID", "us.moonshotai.kimi-k3"),
         dry_run=env.get("DRY_RUN", "true").lower() == "true",
         paused_parameter=env.get("PAUSED_PARAMETER", "/personal-agent/paused"),
+        linkedin_client_id=env.get("LINKEDIN_CLIENT_ID", ""),
+        linkedin_client_secret_name=env.get("LINKEDIN_CLIENT_SECRET_NAME", ""),
+        linkedin_token_secret_arn=env.get("LINKEDIN_TOKEN_SECRET_ARN", ""),
+        # LinkedIn API version (YYYYMM); publishing steps back a month if this one is retired.
+        linkedin_api_version=env.get("LINKEDIN_API_VERSION", "202606"),
     )

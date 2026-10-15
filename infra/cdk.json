@@ -6,6 +6,7 @@
     "timezone": "Asia/Kolkata",
     "dryRun": "true",
     "modelId": "us.moonshotai.kimi-k3",
-    "monthlyBudgetUsd": 50
+    "monthlyBudgetUsd": 50,
+    "linkedinClientId": "77rf25ht3wbh5x"
   }
 }
