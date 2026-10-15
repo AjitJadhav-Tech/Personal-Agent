@@ -10,6 +10,7 @@ dependencies = [
     "boto3>=1.40",
     "pydantic>=2.8",
     "pyyaml>=6",
+    "typst>=0.13",
 ]
 
 [project.optional-dependencies]
@@ -23,7 +24,7 @@ build-backend = "hatchling.build"
 packages = ["src/agent", "src/approval_api", "src/runner"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "."]
+pythonpath = ["src", ".", "tests"]
 testpaths = ["tests"]
 
 [tool.ruff]

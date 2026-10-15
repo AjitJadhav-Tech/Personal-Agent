@@ -21,12 +21,18 @@ class Store(Protocol):
     def decide(self, approval_id: str, decision: dict[str, Any]) -> Approval: ...
     def log(self, kind: str, message: str, data: dict[str, Any] | None = None) -> None: ...
     def activity_since(self, since: datetime) -> list[dict[str, Any]]: ...
+    def seen_jobs(self, job_ids: list[str]) -> set[str]: ...
+    def mark_seen(self, job_ids: list[str]) -> None: ...
+    def put_job(self, job: dict[str, Any]) -> None: ...
+    def get_job(self, job_id: str) -> dict[str, Any] | None: ...
 
 
 class InMemoryStore:
     def __init__(self) -> None:
         self.approvals: dict[str, Approval] = {}
         self.activity: list[dict[str, Any]] = []
+        self.seen: set[str] = set()
+        self.jobs: dict[str, dict[str, Any]] = {}
 
     def put_approval(self, approval: Approval) -> None:
         self.approvals[approval.approval_id] = approval
@@ -55,12 +61,26 @@ class InMemoryStore:
     def activity_since(self, since: datetime) -> list[dict[str, Any]]:
         return [a for a in self.activity if datetime.fromisoformat(a["at"]) >= since]
 
+    def seen_jobs(self, job_ids: list[str]) -> set[str]:
+        return self.seen & set(job_ids)
+
+    def mark_seen(self, job_ids: list[str]) -> None:
+        self.seen |= set(job_ids)
+
+    def put_job(self, job: dict[str, Any]) -> None:
+        self.jobs[job["id"]] = job
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        return self.jobs.get(job_id)
+
 
 class DynamoStore:
     """Single-table layout.
 
     APPROVAL#<id> / META            one approval
     ACTIVITY#<yyyy-mm-dd> / <ts>#<id> activity entries, partitioned by UTC day
+    SEEN#<job id> / META            a job already considered, so later runs skip it
+    JOB#<job id> / META             a shortlisted job with its full description
     """
 
     def __init__(self, table_name: str, region: str) -> None:
@@ -127,6 +147,35 @@ class DynamoStore:
                 out.append({**item, "data": json.loads(item.get("data", "{}"))})
             day += timedelta(days=1)
         return out
+
+    def seen_jobs(self, job_ids: list[str]) -> set[str]:
+        seen: set[str] = set()
+        client = self.table.meta.client
+        unique = list(dict.fromkeys(job_ids))
+        for i in range(0, len(unique), 100):
+            keys = [{"pk": f"SEEN#{j}", "sk": "META"} for j in unique[i : i + 100]]
+            request = {self.table.name: {"Keys": keys, "ProjectionExpression": "pk"}}
+            while request:
+                resp = client.batch_get_item(RequestItems=request)
+                seen |= {item["pk"][5:] for item in resp["Responses"].get(self.table.name, [])}
+                request = resp.get("UnprocessedKeys") or None
+        return seen
+
+    def mark_seen(self, job_ids: list[str]) -> None:
+        expires = int((datetime.now(UTC) + timedelta(days=120)).timestamp())
+        with self.table.batch_writer(overwrite_by_pkeys=["pk", "sk"]) as batch:
+            for job_id in dict.fromkeys(job_ids):
+                batch.put_item(Item={"pk": f"SEEN#{job_id}", "sk": "META", "ttl": expires})
+
+    def put_job(self, job: dict[str, Any]) -> None:
+        expires = int((datetime.now(UTC) + timedelta(days=60)).timestamp())
+        self.table.put_item(
+            Item={"pk": f"JOB#{job['id']}", "sk": "META", "job": json.dumps(job), "ttl": expires}
+        )
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        item = self.table.get_item(Key={"pk": f"JOB#{job_id}", "sk": "META"}).get("Item")
+        return json.loads(item["job"]) if item else None
 
 
 def _encode(d: dict[str, Any]) -> dict[str, Any]:

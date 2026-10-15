@@ -263,7 +263,7 @@ class PersonalAgentStack(cdk.Stack):
             architecture=lambda_.Architecture.ARM_64,
             handler="runner.handler.handler",
             code=code,
-            timeout=cdk.Duration.minutes(15),
+            timeout=cdk.Duration.minutes(2),
             memory_size=256,
             retry_attempts=0,  # a retry could double-act; failures go to the alarm instead
             log_retention=logs.RetentionDays.ONE_MONTH,

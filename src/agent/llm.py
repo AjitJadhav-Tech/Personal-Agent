@@ -48,3 +48,20 @@ def bedrock_drafter(model_id: str, region: str, max_tokens: int = 4096) -> Draft
         return response_text(response)
 
     return draft
+
+
+def parse_json(text: str) -> Any:
+    """Parses the JSON object a model returned, tolerating code fences or a short preamble."""
+    import json
+
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else ""
+        cleaned = cleaned.rsplit("```", 1)[0]
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start == -1 or end <= start:
+            raise ValueError("model did not return JSON") from None
+        return json.loads(cleaned[start : end + 1])

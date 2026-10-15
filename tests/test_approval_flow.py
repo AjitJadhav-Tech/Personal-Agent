@@ -96,52 +96,78 @@ def test_paused_agent_does_not_publish(services):
     assert out["status"] == "paused"
 
 
-def test_job_batch_only_keeps_selected_jobs(services, monkeypatch):
-    jobs = [
-        {
-            "id": "j1",
-            "company": "acme",
-            "title": "AI Engineer",
-            "location": "Remote",
-            "url": "https://x/1",
-            "description": "python langgraph aws",
-        },
-        {
-            "id": "j2",
-            "company": "acme",
-            "title": "Senior AI Engineer",
-            "location": "Remote, US",
-            "url": "https://x/2",
-            "description": "python aws",
-        },
-        {
-            "id": "j3",
-            "company": "acme",
-            "title": "AI Engineer Intern",
-            "location": "Remote",
-            "url": "https://x/3",
-            "description": "python langgraph aws",
-        },
-        {
-            "id": "j4",
-            "company": "acme",
-            "title": "Accountant",
-            "location": "Remote",
-            "url": "https://x/4",
-            "description": "excel",
-        },
-    ]
-    monkeypatch.setitem(job_hunt.SOURCES, "fake", lambda board: jobs)
+JOBS = [
+    {
+        "id": "j1",
+        "company": "acme",
+        "title": "AI Engineer",
+        "location": "Remote",
+        "url": "https://x/1",
+        "description": "python langgraph aws",
+    },
+    {
+        "id": "j2",
+        "company": "acme",
+        "title": "Senior AI Engineer",
+        "location": "Remote, US",
+        "url": "https://x/2",
+        "description": "python aws",
+    },
+    {
+        "id": "j3",
+        "company": "acme",
+        "title": "AI Engineer Intern",
+        "location": "Remote",
+        "url": "https://x/3",
+        "description": "python langgraph aws",
+    },
+    {
+        "id": "j4",
+        "company": "acme",
+        "title": "Accountant",
+        "location": "Remote",
+        "url": "https://x/4",
+        "description": "excel",
+    },
+]
+
+
+def test_job_batch_builds_packs_only_for_selected_jobs(services, monkeypatch):
+    monkeypatch.setitem(job_hunt.SOURCES, "fake", lambda board: [dict(j) for j in JOBS])
     graphs = _graphs()
     out = handle(graphs, {"task": "job_hunt", "thread_id": "jobs-1"})
     assert out["waiting_for_approval"] is True
     (approval,) = services.store.approvals.values()
+    # Intern is excluded and the accountant role never reaches the model.
     assert [j["id"] for j in approval.preview["jobs"]] == ["j1", "j2"]
+    assert services.drafter.calls.count("score_job") == 2
+    assert "Strong agentic AI match." in services.notifier.sent[0]["text"]
 
     out = handle(graphs, _decide(services, {"action": "approve", "selected": ["j2"]}))
-    state = graphs["job_hunt"].get_state({"configurable": {"thread_id": "jobs-1"}}).values
-    assert [j["id"] for j in state["approved"]] == ["j2"]
-    assert out["status"] == "approved"
+    assert out["status"] == "packs_sent"
+    pack = services.notifier.sent[-1]
+    assert pack["subject"] == "Apply pack: Senior AI Engineer at Acme"
+    names = [a[0] for a in pack["attachments"]]
+    assert names == ["Ajit_Jadhav_Resume_Acme.pdf", "Ajit_Jadhav_Cover_Letter_Acme.pdf"]
+    assert all(a[1].startswith(b"%PDF") for a in pack["attachments"])
+
+
+def test_seen_jobs_are_not_offered_again(services, monkeypatch):
+    monkeypatch.setitem(job_hunt.SOURCES, "fake", lambda board: [dict(j) for j in JOBS])
+    graphs = _graphs()
+    handle(graphs, {"task": "job_hunt", "thread_id": "jobs-a"})
+    sent = len(services.notifier.sent)
+    out = handle(graphs, {"task": "job_hunt", "thread_id": "jobs-b"})
+    assert out["waiting_for_approval"] is False
+    assert len(services.notifier.sent) == sent
+
+
+def test_low_model_score_means_no_email(services, monkeypatch):
+    services.drafter.score = 40
+    monkeypatch.setitem(job_hunt.SOURCES, "fake", lambda board: [dict(j) for j in JOBS])
+    out = handle(_graphs(), {"task": "job_hunt", "thread_id": "jobs-c"})
+    assert out["waiting_for_approval"] is False
+    assert services.notifier.sent == []
 
 
 def test_no_matches_means_no_email(services, monkeypatch):

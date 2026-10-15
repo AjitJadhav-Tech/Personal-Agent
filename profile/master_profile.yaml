@@ -17,6 +17,8 @@ objective: >-
   years of experience building production-grade Generative AI and agentic AI systems.
 
 skills:
+  programming:   # Python added 2026-10-15 from the owner's preferences.yaml skills list
+    - Python
   agentic_ai:
     - Agent harness engineering (agent = LLM + harness)
     - Agent loops and planning

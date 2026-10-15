@@ -26,8 +26,21 @@ jobs:
   # Read-only public job boards. Greenhouse board tokens are the last part of
   # https://boards.greenhouse.io/<token>. Add the companies you want to watch.
   sources:
+    # Board names are the last part of the company's careers URL on each platform:
+    #   greenhouse: boards.greenhouse.io/<name>   ashby: jobs.ashbyhq.com/<name>   lever: jobs.lever.co/<name>
+    # A board that doesn't exist shows up as "Source failed" in the daily report.
+    # Meta, Amazon, Google and NVIDIA run their own careers sites with no public job API, so they
+    # can't be watched here; check them yourself or rely on their job-alert emails.
     - type: greenhouse
-      boards: [anthropic, openai, meta, amazon, google, databricks, nvidia, stripe, confluent, snowflake]
+      boards: [anthropic, databricks, stripe, confluent, snowflake]
+    - type: ashby
+      boards: [openai]
+    - type: lever
+      boards: []
+  # Display names for board names that don't capitalize well.
+  company_names: {openai: OpenAI}
+  prefilter_min: 30     # keyword score a job needs before the model scores it
+  llm_score_limit: 20   # most jobs the model scores per run (controls cost)
   
   target_titles:
     - AI Engineer

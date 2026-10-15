@@ -77,8 +77,13 @@ cd infra && cdk bootstrap aws://<ACCOUNT_ID>/us-east-1 && cdk deploy PersonalAge
 
 If you change `infra/stacks/pipeline_stack.py`, regenerate the console template with `python infra/export_pipeline_template.py` and update the `PersonalAgentPipeline` stack with it.
 
-## What's not in phase 0 yet
+## Apply packs (phase 1)
 
-- Resume and cover-letter tailoring with the fact check (phase 1)
+When you approve jobs in a match email, the agent writes a tailored resume and cover letter for each one from `profile/master_profile.yaml` and emails them to you as PDFs, with the job link, the match reason and any gaps. Every resume bullet and cover-letter paragraph must cite facts from your profile; numbers must match those facts exactly; and a second model pass reviews each line. Anything that fails is rewritten once, then replaced with your profile's own wording (or dropped from the cover letter). The email says how many lines were adjusted. You still read and submit every application yourself.
+
+To make the documents stronger, add true facts and metrics to `profile/master_profile.yaml` and push.
+
+## Not built yet
+
 - LinkedIn sign-in through AgentCore Identity and publishing via the Posts API (phase 3); `dryRun` stays `"true"` until then
 - Connection suggestions (phase 4) and the dashboard (phase 2)

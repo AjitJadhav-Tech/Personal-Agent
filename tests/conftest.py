@@ -1,4 +1,5 @@
 import pytest
+from fakes import FakeModel
 
 from agent.config import get_settings
 from agent.notify import RecordingNotifier
@@ -24,7 +25,8 @@ jobs:
   skills: [python, langgraph, aws]
   locations: [remote]
   exclude_title_words: [intern]
-  min_score: 60
+  min_score: 65
+  prefilter_min: 30
 content:
   default_topic: shipping an agent with approvals
 """
@@ -40,7 +42,7 @@ content:
         settings=get_settings(),
         store=InMemoryStore(),
         notifier=RecordingNotifier(),
-        drafter=lambda system, prompt: "Draft post about approvals.",
+        drafter=FakeModel(),
         approval_secret="test-secret",
     )
     set_services(svc)

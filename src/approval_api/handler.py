@@ -95,7 +95,8 @@ def _review_form(approval: Approval, token: str) -> str:
             f'<label class="job"><input type="checkbox" name="selected" value="{escape(j["id"])}" '
             f"checked> <b>{escape(j['title'])}</b> at {escape(j['company'])} "
             f"({escape(j.get('location', ''))}), match {j.get('score', '?')} "
-            f'<a href="{escape(j["url"])}" target="_blank" rel="noopener">view</a></label>'
+            f'<a href="{escape(j["url"])}" target="_blank" rel="noopener">view</a>'
+            f"<br><small>{escape(j.get('reason') or '')}</small></label>"
             for j in approval.preview.get("jobs", [])
         )
         body = f"<p>Untick any job you don't want an apply pack for.</p>{rows}"
