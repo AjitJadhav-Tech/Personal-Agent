@@ -1,20 +1,237 @@
 # Owner preferences. Fill these in; the agent reads this file on every run.
 owner:
-  timezone: Asia/Kolkata   # used for schedules; change if needed
+  name: Ajit Jadhav
+  title: Generative AI Engineer
+  location: Pune, India
+  timezone: Asia/Kolkata
+  email: ajit.jadhav.ai@outlook.com
+  phone: +91 9421424227
+  linkedin: www.linkedin.com/in/ai-ajitjadhav
+  
+  experience_years: 4.5
+  
+  career_objective: |
+    To pursue a lead role with AI architecture ownership, from design through deployment,
+    with 4.5 years of experience building production-grade Generative AI and agentic AI systems.
+
+  education:
+    degree: Bachelor of Engineering
+    university: Pune University
+    year: 2022
+
+  certifications:
+    - OCI 2025 Certified Generative AI Professional
 
 jobs:
   # Read-only public job boards. Greenhouse board tokens are the last part of
   # https://boards.greenhouse.io/<token>. Add the companies you want to watch.
   sources:
     - type: greenhouse
-      boards: []            # e.g. [anthropic, databricks, stripe]
-  target_titles: []         # e.g. ["AI Engineer", "Machine Learning Engineer"]
-  skills: []                # e.g. [python, langgraph, aws, llm]
-  locations: []             # e.g. [remote, india, bengaluru]; empty = any
-  exclude_title_words: [intern, principal]
-  min_score: 60
-  max_per_run: 10
+      boards: [anthropic, openai, meta, amazon, google, databricks, nvidia, stripe, confluent, snowflake]
+  
+  target_titles:
+    - AI Engineer
+    - Generative AI Engineer
+    - Lead AI Engineer
+    - Senior AI Engineer
+    - Staff AI Engineer
+    - Agentic AI Engineer
+    - ML Engineer
+    - LLM Engineer
+    - AI Architect
+    - Machine Learning Engineer
+    - AWS AI Engineer
+    - Bedrock Engineer
+  
+  skills:
+    # Agentic AI & Harness Engineering
+    - langgraph
+    - agent harness
+    - agent loops
+    - strands agents
+    - langchain
+    - mcp
+    - a2a
+    - ollama
+    - human-in-the-loop
+    # Generative AI
+    - rag
+    - hybrid search
+    - reranking
+    - graphrag
+    - vector databases
+    - prompt engineering
+    - context engineering
+    - prompt caching
+    - structured outputs
+    - multimodal ai
+    - voice ai
+    - litellm
+    # ML & Model Engineering
+    - transformers
+    - embeddings
+    - fine-tuning
+    - lora
+    - qlora
+    - peft
+    - quantization
+    - model serving
+    - vllm
+    # AWS Cloud & AI
+    - aws
+    - amazon bedrock
+    - agentcore
+    - sagemaker
+    - amazon nova
+    - textract
+    - transcribe
+    - kendra
+    - opensearch
+    - lambda
+    - ecs
+    - fargate
+    - api gateway
+    - dynamodb
+    - cognito
+    - cloudwatch
+    - kiro
+    # Programming & Tools
+    - python
+    - terraform
+    - aws cdk
+    - cloudformation
+    - opentelemetry
+    - langfuse
+    # Data & Big Data
+    - kafka
+    - kinesis
+    - emr
+    - glue
+    - redshift
+    - athena
+    - hadoop
+  
+  locations:
+    - remote
+    - india
+    - pune
+    - bengaluru
+    - bangalore
+    - hyderabad
+    - mumbai
+  
+  exclude_title_words: [intern, internship]
+  
+  min_score: 65
+  max_per_run: 15
 
 content:
-  default_topic: a lesson from my recent work
-  positioning: ""           # one sentence: who you help, with what, and your proof
+  default_topic: building production-grade agentic AI systems on AWS
+  
+  positioning: |
+    I help enterprises deploy scalable agentic AI platforms on AWS Bedrock, 
+    achieving 70% reduction in manual effort and 25% cost savings through 
+    intelligent multi-agent orchestration and advanced RAG systems.
+
+  expertise_areas:
+    agentic_ai:
+      - Agent Harness Engineering (Agent = LLM + Harness)
+      - Multi-agent orchestration with LangGraph
+      - Supervisor, Swarm & Planner-Executor patterns
+      - Tool design and Tool Gateway
+      - Memory and state persistence
+      - Human-in-the-Loop workflows
+      - Agent routing and evaluation
+    
+    generative_ai:
+      - Advanced RAG (Hybrid Search, Reranking, GraphRAG)
+      - Vector databases and semantic search
+      - Context engineering and prompt caching
+      - Structured outputs and multimodal AI
+      - LiteLLM model routing and cost optimization
+    
+    aws_ai:
+      - Amazon Bedrock and AgentCore Runtime
+      - SageMaker AI for model serving and fine-tuning
+      - OpenSearch Serverless for semantic search
+      - Real-time guardrails for prompt injection and PII protection
+      - Serverless architecture (Lambda, ECS/Fargate, API Gateway)
+    
+    infrastructure:
+      - Infrastructure as Code (Terraform, AWS CDK, CloudFormation)
+      - Observability (OpenTelemetry, Langfuse, CloudWatch)
+      - Security (Cognito, IAM, KMS, WAF)
+      - Event-driven architectures
+
+  key_achievements:
+    - Deployed enterprise-grade agentic AI platform on AWS Bedrock AgentCore
+    - 70% reduction in manual effort through intelligent automation
+    - 25% cost savings through optimized routing and caching
+    - 96% retrieval accuracy with advanced RAG
+    - 1000+ daily interactions with sub-500ms latency
+    - Built multi-agent AI orchestration for supply chain operations
+    - Implemented secure RAG-powered enterprise knowledge platforms
+
+  recent_projects:
+    - name: NEXUS
+      client: Rivian
+      role: Generative AI Engineer
+      period: Oct 2024 - Present
+      tech_stack:
+        - AWS Bedrock AgentCore Runtime
+        - LangGraph
+        - LiteLLM
+        - OpenSearch Serverless
+        - Titan Embeddings v2
+        - OpenTelemetry
+        - Langfuse
+        - Terraform
+      highlights:
+        - Enterprise-grade agentic AI platform
+        - Multi-agent workflows with state management
+        - Multi-provider LLM gateway (Anthropic, OpenAI, Meta)
+        - RAG-based semantic search
+        - Real-time guardrails for security
+        - 70% reduction in manual effort
+        - 25% cost savings
+    
+    - name: SupplyMind
+      client: Cardone Industries
+      role: Cloud & AI Associate
+      period: April 2024 - Sep 2024
+      tech_stack:
+        - AWS Bedrock
+        - Lambda
+        - AppSync
+        - DynamoDB
+        - RDS PostgreSQL
+        - OpenSearch Serverless
+        - SageMaker
+        - Kinesis
+        - AWS CDK
+      highlights:
+        - Multi-agent AI orchestration for supply chain
+        - Five specialized agents with supervisor routing
+        - Serverless architecture for scalability
+        - ML-based forecasting
+        - Event-driven pipelines
+    
+    - name: Catalyst
+      client: Lucid Motors
+      role: Cloud & AI Associate
+      period: April 2024 - Sep 2024
+      tech_stack:
+        - SageMaker
+        - HuggingFace InstructorXL
+        - Falcon 7B-Instruct
+        - Llama-2 13B-Chat
+        - OpenSearch
+        - S3
+        - CloudFront
+        - Cognito
+        - API Gateway
+      highlights:
+        - Enterprise generative AI knowledge platform
+        - RAG-powered knowledge access
+        - Secure inference workflow
+        - Data migration from OCI and GCP to AWS
