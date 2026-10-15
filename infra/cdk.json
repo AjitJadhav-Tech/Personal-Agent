@@ -4,7 +4,7 @@
     "region": "us-east-1",
     "notifyEmail": "ajit.jadhav.ai@outlook.com",
     "timezone": "Asia/Kolkata",
-    "dryRun": "true",
+    "dryRun": "false",
     "modelId": "us.moonshotai.kimi-k3",
     "monthlyBudgetUsd": 50,
     "linkedinClientId": "77rf25ht3wbh5x"
