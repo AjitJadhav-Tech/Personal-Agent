@@ -1,0 +1,185 @@
+# Master profile: the only source of facts the agent may use in resumes, cover letters and posts.
+# Every generated claim must map to a fact id below; anything else is rejected by the fact check.
+# Built from the owner's resume (2026-10-15). Edit freely: add facts, metrics or projects that are
+# true but missing, and delete anything you don't want used.
+
+basics:
+  name: Ajit Jadhav
+  headline: Generative AI Engineer
+  location: Pune, India
+  email: ajit.jadhav.ai@outlook.com
+  phone: "+91 9421424227"
+  linkedin: https://www.linkedin.com/in/ai-ajitjadhav
+  years_experience: 4.5
+
+objective: >-
+  To pursue a lead role with AI architecture ownership, from design through deployment, with 4.5
+  years of experience building production-grade Generative AI and agentic AI systems.
+
+skills:
+  agentic_ai:
+    - Agent harness engineering (agent = LLM + harness)
+    - Agent loops and planning
+    - Tool design and tool gateways
+    - Memory and state persistence
+    - Sandboxed execution
+    - LLM and agent evaluation
+    - LangGraph
+    - Strands Agents
+    - LangChain
+    - MCP
+    - A2A
+    - Agent Skills
+    - Supervisor, swarm and planner-executor patterns
+    - Human-in-the-loop
+    - Agent routing
+    - Ollama
+  generative_ai:
+    - Advanced RAG (hybrid search, reranking, GraphRAG)
+    - Vector databases
+    - Context engineering
+    - Prompt caching
+    - Structured outputs
+    - Multimodal and voice AI
+    - LiteLLM model routing
+  ml_engineering:
+    - Transformers and attention
+    - Tokenization
+    - Embeddings
+    - Fine-tuning (LoRA, QLoRA, PEFT)
+    - Quantization and distillation
+    - Model serving and inference optimization (vLLM)
+  aws:
+    - Amazon Bedrock
+    - Bedrock AgentCore
+    - SageMaker AI
+    - Amazon Nova Sonic
+    - Amazon Nova Act
+    - Textract
+    - Transcribe
+    - Kendra
+    - OpenSearch Serverless
+    - Lambda
+    - ECS/Fargate
+    - API Gateway
+    - DynamoDB
+    - Cognito
+    - IAM
+    - KMS
+    - WAF
+    - CloudWatch
+    - VPC
+    - Amazon Lex
+    - Amazon Polly
+    - Kiro
+  infrastructure_and_data:   # named in the experience section
+    - Terraform
+    - AWS CDK
+    - CloudFormation
+    - OpenTelemetry
+    - Langfuse
+    - AppSync
+    - RDS PostgreSQL
+    - Kinesis
+    - Glue
+    - EventBridge
+    - ElastiCache
+    - Cloudera Hadoop
+    - EMR
+    - MSK / Kafka Connect
+    - Redshift
+    - Athena
+    - QuickSight
+
+experience:
+  - id: cg-genai
+    company: C.G. IT Services LLC
+    title: Generative AI Engineer
+    start: 2024-10
+    end: present
+    projects:
+      - id: nexus
+        name: NEXUS (Next-Generation Experience User System)
+        client: Rivian
+        facts:
+          - id: nexus-platform
+            text: Designed and deployed an enterprise-grade agentic AI platform on AWS Bedrock AgentCore Runtime.
+          - id: nexus-langgraph
+            text: Used LangGraph orchestration for stateful multi-agent workflows.
+          - id: nexus-gateway
+            text: Built a LiteLLM-based multi-provider gateway (Anthropic, OpenAI, Meta) with dynamic routing and cost optimization.
+          - id: nexus-rag
+            text: Integrated RAG-based semantic search with OpenSearch Serverless and Titan Embeddings v2 for contextual knowledge retrieval.
+          - id: nexus-guardrails
+            text: Implemented real-time guardrails for prompt injection detection and PII protection.
+          - id: nexus-observability
+            text: Implemented observability with OpenTelemetry and Langfuse.
+          - id: nexus-terraform
+            text: Automated the infrastructure with Terraform.
+          - id: nexus-results
+            text: Achieved a 70% reduction in manual effort, 25% cost savings, 96% retrieval accuracy, and 1000+ daily interactions with sub-500 ms latency.
+            metrics: {manual_effort_reduction: "70%", cost_savings: "25%", retrieval_accuracy: "96%", daily_interactions: "1000+", latency: "sub-500 ms"}
+      - id: supplymind
+        name: SupplyMind (AI-powered supply chain intelligence platform)
+        client: Cardone Industries
+        facts:
+          - id: supplymind-platform
+            text: Worked on architecting and deploying an end-to-end multi-agent AI orchestration platform on AWS Bedrock for enterprise supply chain operations.
+          - id: supplymind-agents
+            text: Implemented five specialized agents with intelligent supervisor routing.
+            metrics: {agents: 5}
+          - id: supplymind-serverless
+            text: Used a serverless architecture (Lambda, AppSync, DynamoDB, RDS PostgreSQL, S3) for scalable, real-time operations.
+          - id: supplymind-integrations
+            text: Integrated semantic search (OpenSearch Serverless), ML-based forecasting (SageMaker) and event-driven pipelines (Kinesis, Glue, EventBridge, ElastiCache).
+          - id: supplymind-security-iac
+            text: Delivered end-to-end security (Cognito, IAM, KMS, WAF) and infrastructure automation with AWS CDK and CloudFormation for highly available, fault-tolerant systems.
+
+  - id: cg-associate
+    company: C.G. IT Services LLC
+    title: Cloud & AI Associate (Contract)
+    start: 2024-04
+    end: 2024-09
+    projects:
+      - id: catalyst
+        name: Catalyst (enterprise generative AI knowledge platform)
+        client: Lucid Motors
+        facts:
+          - id: catalyst-platform
+            text: Deployed and managed an enterprise generative AI knowledge platform on AWS, unifying datasets and giving global teams RAG-powered knowledge access.
+          - id: catalyst-inference
+            text: Implemented a secure inference workflow using S3, CloudFront and Cognito for authentication, with API Gateway and Lambda for query preprocessing and embedding generation.
+          - id: catalyst-models
+            text: Deployed HuggingFace InstructorXL embeddings with Falcon 7B-Instruct and Llama-2 13B-Chat on SageMaker, integrated with OpenSearch for enterprise Q&A.
+          - id: catalyst-migration
+            text: Migrated data from OCI and GCP to AWS over a secure Site-to-Site VPN into centralized S3 storage.
+
+  - id: duroshox
+    company: Duroshox Pvt. Ltd.
+    title: GET (Infrastructure & Maintenance)
+    start: 2023-06
+    end: 2023-10
+    facts:
+      - id: duroshox-infra
+        text: Configured networking hardware and maintained GPU clusters for AI workloads and high-performance computing on bare-metal, distributed infrastructure.
+
+  - id: allops
+    company: AllOps Technologies Pvt. Ltd.
+    title: Big Data and Cloud Associate
+    start: 2021-11
+    end: 2023-05
+    facts:
+      - id: allops-lakehouse
+        text: Deployed and managed a production Cloudera Hadoop ecosystem and an AWS data lakehouse (EMR, S3, RDS, MSK, Glue, Redshift, Athena, QuickSight) for real-time IoT analytics.
+      - id: allops-ops
+        text: Monitored Kafka Connect and EMR pipelines, optimized auto-scaling and managed S3 datasets for reliable, high-performance data processing.
+
+certifications:
+  - id: cert-oci-genai
+    name: OCI 2025 Certified Generative AI Professional
+
+education:
+  - id: edu-be
+    degree: Bachelor of Engineering
+    institution: Pune University
+    year: 2022
