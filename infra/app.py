@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import aws_cdk as cdk
 from stacks.personal_agent_stack import PersonalAgentStack
+from stacks.pipeline_stack import PipelineStack
 
 app = cdk.App()
 PersonalAgentStack(
@@ -11,6 +12,14 @@ PersonalAgentStack(
     sender_email=app.node.try_get_context("senderEmail") or None,
     dry_run=str(app.node.try_get_context("dryRun") or "true").lower(),
     monthly_budget_usd=float(app.node.try_get_context("monthlyBudgetUsd") or 50),
+    model_id=app.node.try_get_context("modelId") or "us.moonshotai.kimi-k3",
+    env=cdk.Environment(region=app.node.get_context("region")),
+)
+PipelineStack(
+    app,
+    "PersonalAgentPipeline",
+    # Deployed once from the CloudFormation console, so it must not require a CDK bootstrap.
+    synthesizer=cdk.DefaultStackSynthesizer(generate_bootstrap_version_rule=False),
     env=cdk.Environment(region=app.node.get_context("region")),
 )
 app.synth()

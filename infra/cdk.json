@@ -5,6 +5,7 @@
     "notifyEmail": "ajit.jadhav.ai@outlook.com",
     "timezone": "Asia/Kolkata",
     "dryRun": "true",
+    "modelId": "us.moonshotai.kimi-k3",
     "monthlyBudgetUsd": 50
   }
 }

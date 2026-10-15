@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src DOCKER_CONTAINER=1
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir \
       "langgraph>=1.2" "langgraph-checkpoint-aws>=1.2" "bedrock-agentcore>=1.24" \
-      "anthropic[bedrock]>=1.14" "boto3>=1.40" "pydantic>=2.8" "pyyaml>=6" \
+      "boto3>=1.40" "pydantic>=2.8" "pyyaml>=6" \
       "aws-opentelemetry-distro>=0.10"
 
 COPY src ./src

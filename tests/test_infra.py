@@ -53,3 +53,21 @@ def test_email_identity_and_schedules(template):
 def test_approval_api_routes(template):
     template.has_resource_properties("AWS::ApiGatewayV2::Route", {"RouteKey": "GET /a/{id}"})
     template.has_resource_properties("AWS::ApiGatewayV2::Route", {"RouteKey": "POST /a/{id}"})
+
+
+def test_pipeline_deploys_with_codebuild():
+    from stacks.pipeline_stack import PipelineStack
+
+    app = cdk.App()
+    stack = PipelineStack(
+        app, "Pipe", env=cdk.Environment(account="123456789012", region="us-east-1")
+    )
+    t = Template.from_stack(stack)
+    t.has_resource_properties(
+        "AWS::CodeBuild::Project",
+        {
+            "Environment": Match.object_like({"Type": "ARM_CONTAINER", "PrivilegedMode": True}),
+        },
+    )
+    t.has_resource_properties("AWS::CodePipeline::Pipeline", {"PipelineType": "V2"})
+    assert "ConnectionArn" in t.to_json()["Parameters"]

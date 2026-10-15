@@ -33,9 +33,10 @@ def get_settings() -> Settings:
         sender_email=env.get("SENDER_EMAIL", env.get("NOTIFY_EMAIL", "")),
         approval_base_url=env.get("APPROVAL_BASE_URL", "").rstrip("/"),
         approval_secret_arn=env.get("APPROVAL_SECRET_ARN", ""),
-        # Claude on Amazon Bedrock (Mantle endpoint). Override if your account uses other ids.
-        drafting_model_id=env.get("DRAFTING_MODEL_ID", "anthropic.claude-sonnet-5-5"),
-        fast_model_id=env.get("FAST_MODEL_ID", "anthropic.claude-haiku-5-5"),
+        # Kimi K3 through the US cross-Region inference profile (requests stay in US regions;
+        # us-east-1 has no in-Region endpoint for this model). Override to switch models.
+        drafting_model_id=env.get("DRAFTING_MODEL_ID", "us.moonshotai.kimi-k3"),
+        fast_model_id=env.get("FAST_MODEL_ID", "us.moonshotai.kimi-k3"),
         dry_run=env.get("DRY_RUN", "true").lower() == "true",
         paused_parameter=env.get("PAUSED_PARAMETER", "/personal-agent/paused"),
     )

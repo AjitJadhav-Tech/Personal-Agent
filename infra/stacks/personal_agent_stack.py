@@ -53,6 +53,7 @@ class PersonalAgentStack(cdk.Stack):
         timezone: str,
         dry_run: str,
         monthly_budget_usd: float,
+        model_id: str = "us.moonshotai.kimi-k3",
         sender_email: str | None = None,
         **kwargs,
     ) -> None:
@@ -195,13 +196,15 @@ class PersonalAgentStack(cdk.Stack):
         )
         runtime_role.add_to_policy(
             iam.PolicyStatement(
-                # Claude on Bedrock: the Mantle endpoint used by the Anthropic SDK, plus InvokeModel.
-                actions=[
-                    "bedrock-mantle:*",
-                    "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream",
+                # Kimi K3 via the US cross-Region inference profile. Converse is authorized as
+                # InvokeModel; the profile routes to the foundation model in any US region.
+                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+                resources=[
+                    self.format_arn(
+                        service="bedrock", resource="inference-profile", resource_name=model_id
+                    ),
+                    f"arn:{self.partition}:bedrock:*::foundation-model/{model_id.split('.', 1)[1]}",
                 ],
-                resources=["*"],
             )
         )
         runtime_role.add_to_policy(
@@ -245,6 +248,8 @@ class PersonalAgentStack(cdk.Stack):
                 "APPROVAL_SECRET_ARN": approval_secret.secret_arn,
                 "PAUSED_PARAMETER": paused.parameter_name,
                 "DRY_RUN": dry_run,
+                "DRAFTING_MODEL_ID": model_id,
+                "FAST_MODEL_ID": model_id,
             },
         )
         runtime.node.add_dependency(runtime_role)

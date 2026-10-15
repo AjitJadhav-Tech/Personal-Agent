@@ -1,9 +1,13 @@
-"""Claude on Amazon Bedrock through the Anthropic SDK's Bedrock Mantle client."""
+"""Text generation on Amazon Bedrock through the Converse API (Kimi K3 by default).
+
+Each call is a single user turn, so Kimi K3's Converse caveat about replaying reasoning blocks
+from earlier turns does not apply.
+"""
 
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class Drafter(Protocol):
@@ -12,22 +16,35 @@ class Drafter(Protocol):
 
 @lru_cache
 def _client(region: str):
-    from anthropic import AnthropicBedrockMantle
+    import boto3
+    from botocore.config import Config
 
-    return AnthropicBedrockMantle(aws_region=region)
+    return boto3.client(
+        "bedrock-runtime",
+        region_name=region,
+        config=Config(read_timeout=300, retries={"max_attempts": 4, "mode": "adaptive"}),
+    )
 
 
-def bedrock_drafter(model_id: str, region: str) -> Drafter:
+def response_text(response: dict[str, Any]) -> str:
+    """Joins the text blocks of a Converse response, skipping reasoning blocks."""
+    if response.get("stopReason") in ("guardrail_intervened", "content_filtered"):
+        raise RuntimeError(f"model declined to draft this item ({response['stopReason']})")
+    blocks = response["output"]["message"]["content"]
+    text = "".join(b["text"] for b in blocks if "text" in b).strip()
+    if not text:
+        raise RuntimeError("model returned no text")
+    return text
+
+
+def bedrock_drafter(model_id: str, region: str, max_tokens: int = 4096) -> Drafter:
     def draft(system: str, prompt: str) -> str:
-        response = _client(region).messages.create(
-            model=model_id,
-            max_tokens=16000,
-            system=system,
-            output_config={"effort": "medium"},
-            messages=[{"role": "user", "content": prompt}],
+        response = _client(region).converse(
+            modelId=model_id,
+            system=[{"text": system}],
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            inferenceConfig={"maxTokens": max_tokens},
         )
-        if response.stop_reason == "refusal":
-            raise RuntimeError("model declined to draft this item")
-        return "".join(b.text for b in response.content if b.type == "text").strip()
+        return response_text(response)
 
     return draft

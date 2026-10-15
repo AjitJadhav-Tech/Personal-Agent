@@ -21,7 +21,7 @@ Goals for this version:
 | Tracing, metrics, logs | **AgentCore Observability** | OpenTelemetry traces of every graph step and model call into CloudWatch (GenAI observability dashboard): latency, tokens, errors, per-session view |
 | Browser (optional) | **AgentCore Browser** | Managed headless browser to read company career pages that have no API. Not used for LinkedIn or job-board automation (see section 6) |
 | Guardrails on actions (optional) | **AgentCore Policy** (check availability in your region) | Rules such as "LinkedIn publish tool may only be called with an approval token" enforced outside the model |
-| Models | **Amazon Bedrock** (Claude) | Claude Haiku for parsing, scoring and fact checks; Claude Sonnet for resumes, cover letters and posts. Use the cross-region inference profile IDs available in your region |
+| Models | **Amazon Bedrock** (Kimi K3) | Moonshot AI's Kimi K3 for all drafting, scoring and fact checks, called through the Converse API with the US cross-Region inference profile `us.moonshotai.kimi-k3` (us-east-1 has no in-Region endpoint for it). The model id is one setting, so a second, cheaper model can be added for high-volume steps later |
 | Schedules | **EventBridge Scheduler** | Triggers job discovery, weekly content planning, metrics collection and the daily report |
 | Approvals and dashboard API | **API Gateway (HTTP API) + Lambda** | Endpoints for approve / edit / reject, list pending items, settings |
 | Login | **Amazon Cognito** | Single-user sign-in for the dashboard and approval links (passkey or Google sign-in) |
@@ -32,7 +32,8 @@ Goals for this version:
 | PDF rendering | **Lambda** (container image with Typst) | Master profile + template → ATS-friendly PDF |
 | Notifications | **SES** (email), **SNS** (SMS/push), optional Telegram bot via Lambda | "Approval needed" messages and the daily report |
 | Secrets not covered by Identity | **Secrets Manager** | e.g. Telegram bot token |
-| Infrastructure as code | **AWS CDK (Python)** | One `cdk deploy` creates everything; GitHub Actions deploys with OIDC (no long-lived AWS keys) |
+| Infrastructure as code | **AWS CDK (Python)** | Defines every resource |
+| Build and deploy | **CodePipeline + CodeBuild** | Every push to the deploy branch runs lint and tests, builds the ARM64 agent image, and runs `cdk deploy` inside AWS. Nothing to install locally |
 
 ---
 
@@ -71,7 +72,7 @@ flowchart TB
         S3[(S3 + S3 Vectors)]
     end
 
-    BED[Bedrock: Claude models]
+    BED[Bedrock: Kimi K3]
     APIGW[API Gateway + approval Lambda]
 
     EB --> RT
@@ -161,12 +162,13 @@ app = BedrockAgentCoreApp()
 checkpointer = AgentCoreMemorySaver(memory_id=MEMORY_ID)
 graph = build_graph().compile(checkpointer=checkpointer)
 
+
 @app.entrypoint
 def invoke(payload, context):
     config = {"configurable": {"thread_id": payload["thread_id"], "actor_id": "owner"}}
-    if "decision" in payload:          # approval Lambda resuming a paused run
+    if "decision" in payload:  # approval Lambda resuming a paused run
         return graph.invoke(Command(resume=payload["decision"]), config)
-    return graph.invoke({"task": payload["task"]}, config)   # scheduled start
+    return graph.invoke({"task": payload["task"]}, config)  # scheduled start
 ```
 
 (Sketch only; exact class and parameter names to be confirmed against the current SDK versions in phase 0.)
@@ -203,7 +205,8 @@ For one person at the volumes in the plan (about 3 discovery runs a day, 15 to 2
 
 | Item | Estimate / month |
 |---|---|
-| Bedrock Claude (mostly Haiku, Sonnet for writing, prompt caching) | $10 to $35 |
+| Bedrock Kimi K3 (US profile: $3.30 in / $16.50 out per 1M tokens; implicit caching) | $5 to $25 |
+| CodePipeline V2 + CodeBuild (ARM small, a few deploys a month) | $1 to $3 |
 | AgentCore Runtime (billed per second of active compute; waiting for approval is free) | $2 to $10 |
 | AgentCore Memory, Gateway, Identity, Observability | $2 to $10 |
 | Lambda, API Gateway, DynamoDB on-demand, S3, S3 Vectors | $0 to $5 (mostly free tier) |
@@ -228,7 +231,7 @@ infra/
     └── observability_stack.py# dashboards, alarms, budgets
 ```
 
-- GitHub Actions with OIDC role: lint, type check, tests and prompt evals on every PR; `cdk deploy` to a `dev` account/stage on merge, manual approval to deploy `prod`.
+- CodePipeline + CodeBuild (`infra/stacks/pipeline_stack.py`): on every push to the deploy branch, lint and tests, then `cdk deploy`. GitHub Actions still runs lint and tests on pull requests.
 - Separate `dev` stage runs with `DRY_RUN=true` (notifications go only to you, nothing is published).
 
 ---
@@ -251,6 +254,8 @@ infra/
 - Region: **us-east-1** (2026-10-14)
 - Approvals and reports by **email only**, to the owner's Outlook address, sent with Amazon SES (2026-10-14)
 - Phase 0 is built; see [DEPLOY.md](DEPLOY.md)
+- Model: **Kimi K3 on Bedrock** (2026-10-15)
+- Deploys run in **CodeBuild** through CodePipeline (2026-10-15)
 
 ## 11. Extra inputs needed for this version
 
