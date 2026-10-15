@@ -16,6 +16,7 @@ from langgraph_checkpoint_aws import AgentCoreMemorySaver
 from agent.config import get_settings
 from agent.supervisor import compile_all, default_thread_id, handle
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 log = logging.getLogger(__name__)
 app = BedrockAgentCoreApp()
 _settings = get_settings()
@@ -40,6 +41,11 @@ def _run(payload: dict, task_id: int) -> None:
 @app.entrypoint
 def invoke(payload: dict, context=None) -> dict:
     payload = dict(payload)
+    if payload.get("task") not in graphs:
+        return {
+            "accepted": False,
+            "error": f"unknown task {payload.get('task')!r}; use one of {sorted(graphs)}",
+        }
     payload.setdefault("thread_id", default_thread_id(payload.get("task", "run")))
     task_id = app.add_async_task(payload.get("task", "run"), {"thread_id": payload["thread_id"]})
     threading.Thread(target=_run, args=(payload, task_id), daemon=True).start()
