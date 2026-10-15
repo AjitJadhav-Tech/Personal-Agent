@@ -166,3 +166,43 @@ def _preview_text(preview: dict[str, Any]) -> str:
             for j in preview["jobs"]
         )
     return str(preview)
+
+
+def opportunity_email(opp: dict[str, Any]) -> tuple[str, str, str]:
+    """The drafted reply to an opportunity, ready for the owner to send themselves."""
+    from urllib.parse import quote
+
+    info, reply = opp["info"], opp["reply"]
+    label = (
+        " at ".join(x for x in (info.get("title"), info.get("company")) if x) or "your opportunity"
+    )
+    subject = f"Reply drafted: {label}"
+    removed = [c for c in reply["checks"] if c != "passed"]
+    facts = [
+        f"From: {info.get('contact_name') or 'unknown'} {info.get('contact_email') or ''}".strip(),
+        f"Summary: {info.get('summary') or ''}",
+    ]
+    if removed:
+        facts.append(f"Fact check removed {len(removed)} sentence(s) your profile doesn't support.")
+    text = (
+        "\n".join(facts)
+        + f"\n\nSubject: {reply['subject']}\n\n{reply['body']}\n\n"
+        + "Read it, adjust anything, and send it yourself."
+    )
+    mailto = ""
+    if info.get("contact_email"):
+        href = (
+            f"mailto:{quote(info['contact_email'])}?subject={quote(reply['subject'])}"
+            f"&body={quote(reply['body'])}"
+        )
+        mailto = (
+            f'<p><a href="{escape(href)}" style="background:#0a66c2;color:#fff;padding:8px 14px;'
+            f'border-radius:6px;text-decoration:none">Open as a new email</a></p>'
+        )
+    body_html = "<br>".join(escape(line) for line in reply["body"].split("\n"))
+    html = f"""<div style="font-family:system-ui,sans-serif;max-width:640px">
+<h2>{escape(label)}</h2>{"".join(f"<p>{escape(f)}</p>" for f in facts)}
+<p><b>Subject:</b> {escape(reply["subject"])}</p>
+<div style="border-left:3px solid #0a66c2;padding:8px 12px;background:#f5f8fb">{body_html}</div>
+{mailto}<p>Read it, adjust anything, and send it yourself. Nothing was sent on your behalf.</p></div>"""
+    return subject, html, text

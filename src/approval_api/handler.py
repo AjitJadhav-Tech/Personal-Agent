@@ -14,6 +14,7 @@ import hmac
 import json
 import os
 from html import escape
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -21,7 +22,7 @@ from agent import linkedin
 from agent.approvals import Approval, normalize_decision, verify
 from agent.services import get_services
 from agent.store import AlreadyDecided
-from approval_api import control
+from approval_api import api, control
 
 
 def handler(
@@ -32,6 +33,10 @@ def handler(
     path = event.get("rawPath", "")
     if path.startswith("/oauth/linkedin/"):
         return _linkedin(event, path.rsplit("/", 1)[-1], svc)
+    if path.startswith("/api/"):
+        return api.handle(event, svc, start_run or _start_run)
+    if path in ("/", "/app"):
+        return _web_app(event)
     if path == "/control":
         form = _parse_form(event) if method == "POST" else None
         return control.handle(event, svc, form, start_run or _start_run, _page)
@@ -130,6 +135,28 @@ def _resume_async(approval: Approval) -> None:
     _start_run(
         {"task": approval.task, "thread_id": approval.thread_id, "decision": approval.decision}
     )
+
+
+def _web_app(event: dict[str, Any]) -> dict[str, Any]:
+    domain = event.get("requestContext", {}).get("domainName", "")
+    config = {
+        "cognitoDomain": os.environ.get("COGNITO_DOMAIN", ""),
+        "clientId": os.environ.get("COGNITO_CLIENT_ID", ""),
+        "redirectUri": f"https://{domain}/app",
+    }
+    html = (Path(__file__).parent / "static" / "index.html").read_text()
+    html = html.replace("__CONFIG__", json.dumps(config).replace("<", "\\u003c"))
+    return {
+        "statusCode": 200,
+        "headers": {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "x-robots-tag": "noindex",
+            "x-frame-options": "DENY",
+            "referrer-policy": "no-referrer",
+        },
+        "body": html,
+    }
 
 
 def _start_run(payload: dict[str, Any]) -> None:

@@ -60,6 +60,7 @@ Edit `profile/preferences.yaml` (target titles, skills, locations, Greenhouse bo
 
 ## 6. Operating it
 
+- **Web app:** open the `WebAppUrl` output (it ends in `/app`). After the first deploy with the app, Cognito emails you a temporary password; sign in with your email and choose a new password. Only that one account exists (sign-up is off). In the app you can see what is waiting for your approval, ask for a post, run a job search or the report, pause or resume, check LinkedIn, see activity, and paste **opportunities** you received elsewhere (recruiter emails, LinkedIn messages, job posts). For each opportunity the agent drafts a reply in your voice, fact-checked against your profile, optionally with a tailored resume and cover letter, and emails it to you. You send the reply yourself; the agent never contacts anyone.
 - **Control page:** every daily report links to it. Bookmark it and keep it private. From it you can ask for a post on any topic (with your own notes), run a job search or the daily report now, pause or resume the agent, check the LinkedIn connection, and see the last 3 days of activity. Opening the page changes nothing; only its buttons do.
 - **Pause everything:** in *Systems Manager → Parameter Store*, set `/personal-agent/paused` to `true` (back to `false` to resume). If the flag can't be read, the agent treats itself as paused.
 - **Logs and traces:** CloudWatch → GenAI Observability → Bedrock AgentCore; deploy logs in CodeBuild → `personal-agent-deploy`.

@@ -54,6 +54,35 @@ class FakeModel:
                     ]
                 }
             )
+        if task == "analyze_opportunity":
+            return json.dumps(
+                {
+                    "kind": "recruiter",
+                    "company": "Acme AI",
+                    "title": "GenAI Engineer",
+                    "location": "Pune",
+                    "contact_name": "Priya",
+                    "contact_email": "priya@acme.example",
+                    "summary": "Recruiter asks if Ajit is open to a GenAI role.",
+                    "asks": ["interest", "notice period"],
+                    "has_job_description": True,
+                }
+            )
+        if task == "reply_email":
+            return json.dumps(
+                {
+                    "subject": "Re: GenAI Engineer at Acme AI",
+                    "greeting": "Hi Priya,",
+                    "paragraphs": [
+                        {
+                            "text": "I build agentic AI platforms on AWS Bedrock AgentCore.",
+                            "fact_ids": ["nexus-platform"],
+                        },
+                        {"text": "I won a Nobel prize.", "fact_ids": []},
+                    ],
+                    "sign_off": "Best regards,",
+                }
+            )
         if task == "fact_check":
             out, self.unsupported = self.unsupported, []
             return json.dumps({"unsupported": out})

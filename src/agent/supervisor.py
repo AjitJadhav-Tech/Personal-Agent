@@ -10,12 +10,13 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
-from agent.graphs import content, daily_report, job_hunt
+from agent.graphs import content, daily_report, job_hunt, opportunity
 
 BUILDERS = {
     content.TASK: content.build,
     job_hunt.TASK: job_hunt.build,
     daily_report.TASK: daily_report.build,
+    opportunity.TASK: opportunity.build,
 }
 
 ACTOR_ID = "owner"

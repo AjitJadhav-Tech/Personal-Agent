@@ -52,6 +52,26 @@ Rules:
 - Specific and plain. No clichés ("I am thrilled", "fast-paced"), no flattery, no invented details.
 Return JSON only: {"paragraphs": [{"text": str, "fact_ids": [ids]}]}"""
 
+ANALYZE_SYSTEM = """Task: analyze_opportunity
+You read an opportunity the candidate received (a recruiter email, a LinkedIn message, a referral,
+a job post) and extract what is in it. Do not guess: use "" when something is not stated.
+Return JSON only: {"kind": "job" | "recruiter" | "freelance" | "networking" | "other",
+"company": str, "title": str, "location": str, "contact_name": str, "contact_email": str,
+"summary": "one or two sentences", "asks": ["what the sender wants from the candidate"],
+"has_job_description": true | false}"""
+
+REPLY_SYSTEM = """Task: reply_email
+You draft the candidate's reply to an opportunity they received, in the first person, ready to send.
+Rules:
+- Claims about the candidate cite fact ids in "fact_ids"; use ONLY those facts.
+- Statements about the opportunity must come from the message; cite them as "jd".
+- Answer what the sender asked. Express interest plainly, propose a next step (a call, sharing
+  a resume), and ask at most two useful questions (for example role scope, compensation range,
+  timeline) when the message leaves them open.
+- 90 to 180 words, 2 or 3 short paragraphs. No clichés, flattery, or invented details.
+Return JSON only: {"subject": str, "greeting": str, "paragraphs": [{"text": str, "fact_ids": [ids]}],
+"sign_off": str}"""
+
 CHECK_SYSTEM = """Task: fact_check
 You are a strict reviewer. For each numbered item, decide whether its cited facts fully support
 every claim in it (tools, scope, results, numbers, seniority). Wording may differ; meaning may not.
@@ -300,3 +320,41 @@ def _month(value: Any) -> str:
 
     year, month = str(value).split("-")[:2]
     return dt.date(int(year), int(month), 1).strftime("%b %Y")
+
+
+def analyze_opportunity(drafter: Drafter, text: str) -> dict[str, Any]:
+    raw = parse_json(drafter(ANALYZE_SYSTEM, f"Message received:\n{text[:JD_LIMIT]}"))
+    fields = ("kind", "company", "title", "location", "contact_name", "contact_email", "summary")
+    out = {k: str(raw.get(k) or "").strip() for k in fields}
+    out["kind"] = out["kind"] if out["kind"] in KINDS else "other"
+    out["asks"] = [str(a) for a in raw.get("asks", [])][:5]
+    out["has_job_description"] = bool(raw.get("has_job_description"))
+    return out
+
+
+KINDS = ("job", "recruiter", "freelance", "networking", "other")
+
+
+def draft_reply(
+    drafter: Drafter, profile: dict[str, Any], text: str, info: dict[str, Any]
+) -> dict[str, Any]:
+    """A reply email the owner sends themselves; every claim is checked like the cover letter."""
+    facts = fact_index(profile)
+    prompt = (
+        f"{profile_brief(profile)}\n\nWhat we know: {json.dumps(info)}\n\n"
+        f"Message received:\n{text[:JD_LIMIT]}"
+    )
+    raw = parse_json(drafter(REPLY_SYSTEM, prompt))
+    items = [
+        {"exp_id": None, "text": str(p.get("text", "")), "fact_ids": list(p.get("fact_ids", []))}
+        for p in raw.get("paragraphs", [])
+    ]
+    checked = verify_items(drafter, facts, items, owned=None, jd=text, drop_failures=True)
+    name = profile.get("basics", {}).get("name", "")
+    greeting = str(raw.get("greeting") or "Hello,").strip()
+    sign_off = str(raw.get("sign_off") or "Best regards,").strip()
+    body = "\n\n".join(
+        [greeting, *[i["text"] for i in checked if i["text"]], f"{sign_off}\n{name}"]
+    )
+    subject = str(raw.get("subject") or "").strip() or f"Re: {info.get('title') or 'your message'}"
+    return {"subject": subject, "body": body, "checks": [i["check"] for i in checked]}

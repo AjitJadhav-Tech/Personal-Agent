@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Personal Agent</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1b1f24;--muted:#5d6670;--line:#e3e6ea;--accent:#0a66c2;--accent-ink:#fff;--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--soft:#eef4fb}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1217;--card:#171b22;--text:#e6e9ed;--muted:#9aa4af;--line:#2a3039;--accent:#4c9be8;--accent-ink:#0f1217;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--soft:#1c2633}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+header h1{font-size:17px;margin:0;flex:1}
+nav{display:flex;gap:4px;padding:8px 16px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{border:0;background:none;color:var(--muted);padding:8px 12px;border-radius:8px;font:inherit;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
+main{max-width:860px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.stat .label{color:var(--muted);font-size:13px}.stat .value{font-size:16px;font-weight:600;margin:2px 0 8px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+button.btn,a.btn{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer;text-decoration:none}
+button.primary,a.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button:disabled{opacity:.6;cursor:default}
+input[type=text],input[type=url],textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+textarea{resize:vertical}
+label.field{display:block;margin:0 0 12px}label.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.list{list-style:none;margin:0;padding:0}.list li{padding:10px 0;border-top:1px solid var(--line)}.list li:first-child{border-top:0}
+.meta{color:var(--muted);font-size:13px}
+.draft{white-space:pre-wrap;background:var(--soft);border-left:3px solid var(--accent);padding:10px 12px;border-radius:6px;margin:8px 0}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;display:none;max-width:90vw}
+.center{text-align:center;padding:60px 16px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+<script>
+const CONFIG = __CONFIG__;
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid);
+  return el;
+};
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (t.style.display = "none"), 4000);
+}
+const when = (iso) => new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
+
+// ---------- Sign-in (Cognito, authorization code + PKCE) ----------
+const store = {get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch {} }};
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function signIn() {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
+  sessionStorage.setItem("pkce", JSON.stringify({verifier, state}));
+  const q = new URLSearchParams({response_type: "code", client_id: CONFIG.clientId, redirect_uri: CONFIG.redirectUri,
+    scope: "openid email", code_challenge: challenge, code_challenge_method: "S256", state});
+  location.href = `${CONFIG.cognitoDomain}/oauth2/authorize?${q}`;
+}
+async function tokenRequest(params) {
+  const r = await fetch(`${CONFIG.cognitoDomain}/oauth2/token`, {method: "POST",
+    headers: {"content-type": "application/x-www-form-urlencoded"},
+    body: new URLSearchParams({client_id: CONFIG.clientId, ...params})});
+  if (!r.ok) throw new Error("sign-in failed");
+  const t = await r.json();
+  store.set("access_token", t.access_token);
+  store.set("expires_at", String(Date.now() + (t.expires_in - 60) * 1000));
+  if (t.refresh_token) store.set("refresh_token", t.refresh_token);
+}
+async function finishSignIn() {
+  const p = new URLSearchParams(location.search);
+  if (!p.get("code")) return;
+  const saved = JSON.parse(sessionStorage.getItem("pkce") || "{}");
+  history.replaceState(null, "", location.pathname);
+  if (p.get("state") !== saved.state) throw new Error("sign-in expired, try again");
+  await tokenRequest({grant_type: "authorization_code", code: p.get("code"), redirect_uri: CONFIG.redirectUri, code_verifier: saved.verifier});
+}
+async function accessToken() {
+  if (store.get("access_token") && Date.now() < Number(store.get("expires_at"))) return store.get("access_token");
+  if (!store.get("refresh_token")) return null;
+  try { await tokenRequest({grant_type: "refresh_token", refresh_token: store.get("refresh_token")}); }
+  catch { signOutLocal(); return null; }
+  return store.get("access_token");
+}
+function signOutLocal() { ["access_token", "expires_at", "refresh_token"].forEach(store.del); }
+function signOut() {
+  signOutLocal();
+  location.href = `${CONFIG.cognitoDomain}/logout?` + new URLSearchParams({client_id: CONFIG.clientId, logout_uri: CONFIG.redirectUri});
+}
+async function api(path, body) {
+  const token = await accessToken();
+  if (!token) { render(); throw new Error("signed out"); }
+  const r = await fetch(`/api${path}`, {method: body ? "POST" : "GET",
+    headers: {authorization: `Bearer ${token}`, ...(body ? {"content-type": "application/json"} : {})},
+    body: body ? JSON.stringify(body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { signOutLocal(); render(); throw new Error("signed out"); }
+  if (!r.ok) throw new Error(data.error || `request failed (${r.status})`);
+  return data;
+}
+
+// ---------- Views ----------
+let tab = (() => { try { return sessionStorage.getItem("tab") || "home"; } catch { return "home"; } })();
+let pollTimer;
+const TABS = [["home", "Home"], ["opportunity", "Opportunities"], ["post", "New post"], ["activity", "Activity"]];
+
+async function render() {
+  const root = $("#root"); root.replaceChildren();
+  if (!(await accessToken())) {
+    root.append(h("div", {class: "center"}, h("h1", {}, "Personal Agent"),
+      h("p", {class: "meta"}, "Sign in to steer your agent."), h("button", {class: "btn primary", onclick: signIn}, "Sign in")));
+    return;
+  }
+  root.append(
+    h("header", {}, h("h1", {}, "Personal Agent"), h("span", {class: "pill", id: "state"}, "Signed in"),
+      h("button", {class: "btn", onclick: signOut}, "Sign out")),
+    h("nav", {}, TABS.map(([id, label]) => h("button", {class: id === tab ? "on" : "", onclick: () => go(id)}, label))),
+    h("main", {id: "main"}, h("p", {class: "meta"}, "Loading…")));
+  clearTimeout(pollTimer);
+  try { await ({home, opportunity, post, activity})[tab]($("#main")); }
+  catch (e) { if (e.message !== "signed out") $("#main").replaceChildren(h("div", {class: "card bad"}, e.message)); }
+}
+function go(id) { tab = id; try { sessionStorage.setItem("tab", id); } catch {} render(); }
+async function act(button, fn) {
+  button.disabled = true;
+  try { await fn(); } catch (e) { if (e.message !== "signed out") toast(e.message); } finally { button.disabled = false; }
+}
+
+async function home(main) {
+  const s = await api("/status");
+  $("#state").textContent = s.paused ? "Paused" : (s.dry_run ? "Dry run" : "Live");
+  const li = s.linkedin;
+  main.replaceChildren(
+    h("div", {class: "grid"},
+      h("div", {class: "card stat"}, h("div", {class: "label"}, "Agent"),
+        h("div", {class: "value " + (s.paused ? "warn" : "ok")}, s.paused ? "Paused" : "Running on schedule"),
+        h("button", {class: "btn", onclick: (e) => act(e.target, async () => { await api("/pause", {paused: !s.paused}); render(); })},
+          s.paused ? "Resume" : "Pause")),
+      h("div", {class: "card stat"}, h("div", {class: "label"}, "LinkedIn posts"),
+        h("div", {class: "value " + (s.dry_run ? "warn" : "ok")}, s.dry_run ? "Dry run (not published)" : "Published after you approve")),
+      h("div", {class: "card stat"}, h("div", {class: "label"}, "LinkedIn connection"),
+        h("div", {class: "value " + (li.connected ? (li.days_left > 7 ? "ok" : "warn") : "bad")},
+          li.connected ? `Connected, ${li.days_left} days left` : "Not connected"),
+        (!li.connected || li.days_left <= 7) && h("a", {class: "btn primary", href: li.connect_url}, "Connect LinkedIn"))),
+    h("div", {class: "card"}, h("h2", {}, `Waiting for you (${s.pending.length})`),
+      s.pending.length ? h("ul", {class: "list"}, s.pending.map((p) => h("li", {class: "row"},
+        h("div", {style: "flex:1"}, h("div", {}, p.title), h("div", {class: "meta"}, `${p.kind === "post" ? "Post" : "Jobs"} · expires ${when(p.expires_at)}`)),
+        h("a", {class: "btn primary", href: p.url, target: "_blank", rel: "noopener"}, "Review"))))
+        : h("p", {class: "meta"}, "Nothing needs your approval right now.")),
+    h("div", {class: "card"}, h("h2", {}, "Run now"), h("div", {class: "row"},
+      h("button", {class: "btn", onclick: (e) => act(e.target, async () => toast((await api("/run", {task: "job_hunt"})).message))}, "Search jobs"),
+      h("button", {class: "btn", onclick: (e) => act(e.target, async () => toast((await api("/run", {task: "daily_report"})).message))}, "Send daily report"),
+      h("button", {class: "btn", onclick: () => go("post")}, "Ask for a post"),
+      h("button", {class: "btn", onclick: () => go("opportunity")}, "Add an opportunity"))));
+}
+
+async function opportunity(main) {
+  const form = h("form", {class: "card", onsubmit: (e) => {
+      e.preventDefault();
+      act($("button", form), async () => {
+        await api("/opportunities", {text: form.text.value, link: form.link.value, documents: form.documents.checked});
+        form.reset(); toast("Drafting your reply. It also arrives by email."); await opportunity(main);
+      });
+    }},
+    h("h2", {}, "Add an opportunity"),
+    h("p", {class: "meta"}, "Paste a recruiter email, a LinkedIn message or a job post. The agent drafts a reply from your profile; you send it."),
+    h("label", {class: "field"}, h("span", {}, "Message or job post"), h("textarea", {name: "text", rows: 9, required: true})),
+    h("label", {class: "field"}, h("span", {}, "Link (optional)"), h("input", {name: "link", type: "url", placeholder: "https://"})),
+    h("label", {class: "row", style: "margin-bottom:12px;flex-wrap:nowrap"}, h("input", {type: "checkbox", name: "documents"}), "Also make a tailored resume and cover letter"),
+    h("button", {class: "btn primary"}, "Draft my reply"));
+  const {opportunities} = await api("/opportunities");
+  main.replaceChildren(form, h("div", {class: "card"}, h("h2", {}, "Recent"),
+    opportunities.length ? h("ul", {class: "list"}, opportunities.map(oppItem)) : h("p", {class: "meta"}, "None yet.")));
+  if (opportunities.some((o) => o.status === "drafting")) pollTimer = setTimeout(() => tab === "opportunity" && opportunity(main), 8000);
+}
+function oppItem(o) {
+  const info = o.info || {};
+  const label = [info.title, info.company].filter(Boolean).join(" at ") || o.text.slice(0, 80) + "…";
+  const status = {drafting: ["warn", "Drafting…"], ready: ["ok", "Ready"], failed: ["bad", "Failed"]}[o.status] || ["", o.status];
+  const item = h("li", {}, h("div", {class: "row"}, h("b", {style: "flex:1"}, label), h("span", {class: "pill " + status[0]}, status[1])),
+    h("div", {class: "meta"}, [when(o.created_at), info.contact_name, info.contact_email].filter(Boolean).join(" · ")));
+  if (o.status === "ready") {
+    const text = `Subject: ${o.reply.subject}\n\n${o.reply.body}`;
+    item.append(h("div", {class: "draft"}, text), h("div", {class: "row"},
+      h("button", {class: "btn", onclick: () => navigator.clipboard.writeText(text).then(() => toast("Copied"))}, "Copy"),
+      info.contact_email && h("a", {class: "btn primary", href: `mailto:${encodeURIComponent(info.contact_email)}?subject=${encodeURIComponent(o.reply.subject)}&body=${encodeURIComponent(o.reply.body)}`}, "Open in email"),
+      o.link && h("a", {class: "btn", href: o.link, target: "_blank", rel: "noopener"}, "Open link")));
+  }
+  if (o.status === "failed") item.append(h("p", {class: "bad"}, o.error || "Something went wrong."));
+  item.append(h("details", {}, h("summary", {}, "Original message"), h("div", {class: "draft"}, o.text)));
+  return item;
+}
+
+async function post(main) {
+  const form = h("form", {class: "card", onsubmit: (e) => {
+      e.preventDefault();
+      act($("button", form), async () => { toast((await api("/posts", {topic: form.topic.value, notes: form.notes.value})).message); form.reset(); });
+    }},
+    h("h2", {}, "Ask for a LinkedIn post"),
+    h("p", {class: "meta"}, "The draft comes to your email for approval. Nothing is posted until you approve."),
+    h("label", {class: "field"}, h("span", {}, "Topic"), h("input", {name: "topic", type: "text", required: true, placeholder: "What I learned shipping an agent on AgentCore"})),
+    h("label", {class: "field"}, h("span", {}, "Notes: facts, numbers, a story (the agent sticks to these)"), h("textarea", {name: "notes", rows: 7})),
+    h("button", {class: "btn primary"}, "Draft it for my approval"));
+  main.replaceChildren(form);
+}
+
+async function activity(main) {
+  const {entries} = await api("/activity?days=7");
+  main.replaceChildren(h("div", {class: "card"}, h("h2", {}, "Last 7 days"),
+    entries.length ? h("ul", {class: "list"}, entries.map((e) => h("li", {}, h("div", {}, e.message), h("div", {class: "meta"}, `${when(e.at)} · ${e.kind}`))))
+      : h("p", {class: "meta"}, "No activity yet.")));
+}
+
+finishSignIn().catch((e) => toast(e.message)).finally(render);
+</script>
+</body>
+</html>

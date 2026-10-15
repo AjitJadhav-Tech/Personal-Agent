@@ -71,3 +71,14 @@ def test_pipeline_deploys_with_codebuild():
     )
     t.has_resource_properties("AWS::CodePipeline::Pipeline", {"PipelineType": "V2"})
     assert "ConnectionArn" in t.to_json()["Parameters"]
+
+
+def test_web_app_sign_in_is_owner_only(template):
+    template.has_resource_properties(
+        "AWS::Cognito::UserPool",
+        {"AdminCreateUserConfig": {"AllowAdminCreateUserOnly": True}},
+    )
+    template.resource_count_is("AWS::Cognito::UserPoolUser", 1)
+    routes = template.find_resources("AWS::ApiGatewayV2::Route")
+    api_routes = [r for r in routes.values() if "/api/" in r["Properties"]["RouteKey"]]
+    assert api_routes and all(r["Properties"]["AuthorizationType"] == "JWT" for r in api_routes)

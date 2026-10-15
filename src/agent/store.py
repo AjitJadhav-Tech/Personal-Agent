@@ -25,6 +25,9 @@ class Store(Protocol):
     def mark_seen(self, job_ids: list[str]) -> None: ...
     def put_job(self, job: dict[str, Any]) -> None: ...
     def get_job(self, job_id: str) -> dict[str, Any] | None: ...
+    def pending_approvals(self) -> list[Approval]: ...
+    def put_opportunity(self, opp: dict[str, Any]) -> None: ...
+    def list_opportunities(self, limit: int = 20) -> list[dict[str, Any]]: ...
 
 
 class InMemoryStore:
@@ -33,6 +36,7 @@ class InMemoryStore:
         self.activity: list[dict[str, Any]] = []
         self.seen: set[str] = set()
         self.jobs: dict[str, dict[str, Any]] = {}
+        self.opportunities: dict[str, dict[str, Any]] = {}
 
     def put_approval(self, approval: Approval) -> None:
         self.approvals[approval.approval_id] = approval
@@ -73,6 +77,20 @@ class InMemoryStore:
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         return self.jobs.get(job_id)
 
+    def pending_approvals(self) -> list[Approval]:
+        return sorted(
+            (a for a in self.approvals.values() if a.status == PENDING and not a.is_expired()),
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+
+    def put_opportunity(self, opp: dict[str, Any]) -> None:
+        self.opportunities[opp["id"]] = dict(opp)
+
+    def list_opportunities(self, limit: int = 20) -> list[dict[str, Any]]:
+        opps = sorted(self.opportunities.values(), key=lambda o: o["created_at"], reverse=True)
+        return opps[:limit]
+
 
 class DynamoStore:
     """Single-table layout.
@@ -81,6 +99,8 @@ class DynamoStore:
     ACTIVITY#<yyyy-mm-dd> / <ts>#<id> activity entries, partitioned by UTC day
     SEEN#<job id> / META            a job already considered, so later runs skip it
     JOB#<job id> / META             a shortlisted job with its full description
+    PENDING / <approval id>         index of approvals still waiting, for the web app
+    OPP / <created at>#<id>         an opportunity the owner pasted in, with the drafted reply
     """
 
     def __init__(self, table_name: str, region: str) -> None:
@@ -92,6 +112,14 @@ class DynamoStore:
         item = {"pk": f"APPROVAL#{approval.approval_id}", "sk": "META", **_encode(asdict(approval))}
         item["ttl"] = int(datetime.fromisoformat(approval.expires_at).timestamp()) + 30 * 86400
         self.table.put_item(Item=item)
+        if approval.status == PENDING:
+            self.table.put_item(
+                Item={
+                    "pk": "PENDING",
+                    "sk": approval.approval_id,
+                    "ttl": int(datetime.fromisoformat(approval.expires_at).timestamp()),
+                }
+            )
 
     def get_approval(self, approval_id: str) -> Approval | None:
         item = self.table.get_item(Key={"pk": f"APPROVAL#{approval_id}", "sk": "META"}).get("Item")
@@ -117,6 +145,7 @@ class DynamoStore:
             if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
                 raise AlreadyDecided(approval_id) from e
             raise
+        self.table.delete_item(Key={"pk": "PENDING", "sk": approval_id})
         return _approval_from_item(item)
 
     def log(self, kind: str, message: str, data: dict[str, Any] | None = None) -> None:
@@ -176,6 +205,39 @@ class DynamoStore:
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         item = self.table.get_item(Key={"pk": f"JOB#{job_id}", "sk": "META"}).get("Item")
         return json.loads(item["job"]) if item else None
+
+    def pending_approvals(self) -> list[Approval]:
+        from boto3.dynamodb.conditions import Key
+
+        ids = [
+            i["sk"]
+            for i in self.table.query(KeyConditionExpression=Key("pk").eq("PENDING"))["Items"]
+        ]
+        approvals = [a for a in map(self.get_approval, ids) if a]
+        return sorted(
+            (a for a in approvals if a.status == PENDING and not a.is_expired()),
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+
+    def put_opportunity(self, opp: dict[str, Any]) -> None:
+        expires = int((datetime.now(UTC) + timedelta(days=180)).timestamp())
+        self.table.put_item(
+            Item={
+                "pk": "OPP",
+                "sk": f"{opp['created_at']}#{opp['id']}",
+                "opp": json.dumps(opp),
+                "ttl": expires,
+            }
+        )
+
+    def list_opportunities(self, limit: int = 20) -> list[dict[str, Any]]:
+        from boto3.dynamodb.conditions import Key
+
+        resp = self.table.query(
+            KeyConditionExpression=Key("pk").eq("OPP"), ScanIndexForward=False, Limit=limit
+        )
+        return [json.loads(i["opp"]) for i in resp["Items"]]
 
 
 def _encode(d: dict[str, Any]) -> dict[str, Any]:

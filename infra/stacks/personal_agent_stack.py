@@ -8,11 +8,13 @@ from pathlib import Path
 import aws_cdk as cdk
 from aws_cdk import (
     aws_apigatewayv2 as apigw,
+    aws_apigatewayv2_authorizers as authorizers,
     aws_apigatewayv2_integrations as integrations,
     aws_bedrockagentcore as agentcore,
     aws_budgets as budgets,
     aws_cloudwatch as cw,
     aws_cloudwatch_actions as cw_actions,
+    aws_cognito as cognito,
     aws_dynamodb as ddb,
     aws_ecr_assets as ecr_assets,
     aws_iam as iam,
@@ -181,6 +183,71 @@ class PersonalAgentStack(cdk.Stack):
             path="/control",
             methods=[apigw.HttpMethod.GET, apigw.HttpMethod.POST],
             integration=integrations.HttpLambdaIntegration("ControlIntegration", approval_fn),
+        )
+
+        # ---------- Web app: Cognito sign-in for the owner only ----------
+        app_url = f"{api.api_endpoint}/app"
+        user_pool = cognito.UserPool(
+            self,
+            "Users",
+            user_pool_name="personal-agent-users",
+            self_sign_up_enabled=False,
+            sign_in_aliases=cognito.SignInAliases(email=True),
+            account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            user_invitation=cognito.UserInvitationConfig(
+                email_subject="Your Personal Agent sign-in",
+                email_body=(
+                    "Your Personal Agent web app is ready: " + app_url + "<br><br>"
+                    "Username: {username}<br>Temporary password: {####}<br><br>"
+                    "You'll choose a new password the first time you sign in."
+                ),
+            ),
+            removal_policy=cdk.RemovalPolicy.RETAIN,
+        )
+        user_pool_domain = user_pool.add_domain(
+            "Domain",
+            cognito_domain=cognito.CognitoDomainOptions(
+                domain_prefix=f"personal-agent-{self.account}"
+            ),
+        )
+        app_client = user_pool.add_client(
+            "WebApp",
+            generate_secret=False,
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(authorization_code_grant=True),
+                scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
+                callback_urls=[app_url],
+                logout_urls=[app_url],
+            ),
+            supported_identity_providers=[cognito.UserPoolClientIdentityProvider.COGNITO],
+            refresh_token_validity=cdk.Duration.days(30),
+            prevent_user_existence_errors=True,
+        )
+        cognito.CfnUserPoolUser(
+            self,
+            "Owner",
+            user_pool_id=user_pool.user_pool_id,
+            username=notify_email,
+            user_attributes=[
+                cognito.CfnUserPoolUser.AttributeTypeProperty(name="email", value=notify_email),
+                cognito.CfnUserPoolUser.AttributeTypeProperty(name="email_verified", value="true"),
+            ],
+            desired_delivery_mediums=["EMAIL"],
+        )
+        approval_fn.add_environment("COGNITO_CLIENT_ID", app_client.user_pool_client_id)
+        approval_fn.add_environment("COGNITO_DOMAIN", user_pool_domain.base_url())
+        api.add_routes(
+            path="/app",
+            methods=[apigw.HttpMethod.GET],
+            integration=integrations.HttpLambdaIntegration("AppIntegration", approval_fn),
+        )
+        api.add_routes(
+            path="/api/{proxy+}",
+            methods=[apigw.HttpMethod.GET, apigw.HttpMethod.POST],
+            integration=integrations.HttpLambdaIntegration("ApiIntegration", approval_fn),
+            authorizer=authorizers.HttpUserPoolAuthorizer(
+                "AppAuthorizer", user_pool, user_pool_clients=[app_client]
+            ),
         )
 
         # ---------- AgentCore Runtime ----------
@@ -367,6 +434,7 @@ class PersonalAgentStack(cdk.Stack):
         )
 
         cdk.CfnOutput(self, "ApprovalApiUrl", value=api.api_endpoint)
+        cdk.CfnOutput(self, "WebAppUrl", value=app_url)
         cdk.CfnOutput(self, "AgentRuntimeArn", value=runtime.attr_agent_runtime_arn)
         cdk.CfnOutput(self, "MemoryId", value=memory.attr_memory_id)
         cdk.CfnOutput(self, "RunnerFunction", value=RUNNER_FUNCTION_NAME)
