@@ -36,7 +36,15 @@ class LinkedInAccount:
         )
 
     def client_secret(self) -> str:
-        return _secret(self.settings.linkedin_client_secret_name, self.settings.region).strip()
+        raw = _secret(self.settings.linkedin_client_secret_name, self.settings.region).strip()
+        # Accept a key/value secret too: the console's default type stores {"key": "value"}.
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            return raw
+        if isinstance(parsed, dict) and len(parsed) == 1:
+            return str(next(iter(parsed.values()))).strip()
+        return raw
 
     def publish(self, text: str) -> str:
         record = self.record()
